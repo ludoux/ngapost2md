@@ -378,7 +378,7 @@ def collapse(raw):
         if ritem[0] == '':
             rt = '<details>\n  <summary>已折叠，点击展开</summary>\n  <pre>' + \
                 ritem[0].replace('\n', '<br>') + '</pre>\n</details>'
-            raw = raw.replace('[collapse]%s[/collapse]' % ritem[0], rt)
+            raw = raw.replace('[collapse]%s[/collapse]' % ritem[1], rt)
         else:
             rt = '<details>\n  <summary>' + \
                 ritem[0][1:] + '</summary>\n  <pre>' + \
