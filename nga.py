@@ -6,6 +6,7 @@ import sys
 import time
 from contextlib import closing
 import json
+import math
 import nga_format
 
 # =============先修改
@@ -53,6 +54,10 @@ def single(page):
     ttext = re.search(r',"__T":(.+?),"__F":', content, flags=re.S).group(1)
     tdict = json.loads(ttext, strict=False)  # 帖子的一些数据
 
+    rows = int(re.search(r'"__ROWS":([0-9]+?),"', content, flags=re.S).group(1))
+    rowspage = int(re.search(r'"__R__ROWS_PAGE":([0-9]+?),"', content, flags=re.S).group(1))
+    maxpages = math.ceil(float(rows)/rowspage)
+
     global title
     title = tdict['subject']
 
@@ -77,8 +82,9 @@ def single(page):
                         replydict[str(i)]['pid']), one[1], one[2], one[3], one[4]])
                     commentreply.remove(one)
 
-    # lastposter 对不上 “且”不是只有主楼的情况
-    return int(tdict['replies']) > totalfloor[len(totalfloor)-1][0] and not(len(totalfloor) == 1 and totalfloor[0][0] == 0)
+    return page <= maxpages
+    ## lastposter 对不上 “且”不是只有主楼的情况
+    #return int(tdict['replies']) > totalfloor[len(totalfloor)-1][0] and not(len(totalfloor) == 1 and totalfloor[0][0] == 0)
 
 
 def makefile():
