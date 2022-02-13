@@ -279,7 +279,7 @@ def smile(raw):
 
 
 def newline(raw):
-    return raw.replace('<br/>', '\n').replace('<br>', '\n')
+    return raw.replace('<br/>', '\n').replace('<br>', '\n').replace('&lt;br/&gt;','\n').replace('&lt;br&gt;','\n')
 
 
 def pic(raw, tid, floorindex, total):
@@ -318,22 +318,34 @@ def quote(raw):
         raw = ro0.sub('>[jump](#pid0) %s(%s) said:%s\n\n' %
                       (quoteauthor, ritem[1], quotetext), raw)
 
-    ro1 = re.compile(
-        r'\[quote\]\[pid=(\d+?),.+?\[uid.*?\](.+?)\[/uid\].*?\((\d{4}.+?)\):\[/b\](.+?)\[/quote\]((?:\n){0,2})', flags=re.S)
-    # [0]pid [1]原作者 [2]时间 [3]说的东西
-    rex = ro1.findall(raw)
-    for ritem in rex:
-        quotetext = ritem[3]
-        quotetext = quotetext.replace('\n', '\n>')
-        quoteauthor = ritem[1]
-        # appendpid.append(int(ritem[0])) #这里会有原文的，就不append了
-        if quoteauthor[:7] == '#anony_':
-            # TODO: https://img4.nga.178.com/common_res/js_commonui.js commonui.anonyName 之后再整
-            quoteauthor = '匿' + quoteauthor[-6:]
-        raw = ro1.sub('>[jump](#pid%s) %s(%s) said:%s\n\n' %
-                      (ritem[0], quoteauthor, ritem[2], quotetext), raw)
-        # raw = raw.replace(re.search(r'\[quote\].+?\[uid.*?\](.+?)\[/uid\].*?\((\d{4}.+?)\):\[/b\](.+?)\[/quote\]',
-        # raw, flags=re.S).group(), '>%s(%s) said:%s' % (quoteauthor, ritem[1], quotetext))
+    quoteCount = raw.count("[quote]")
+    for x in range(quoteCount):
+        end = raw.find('[/quote]')
+        start = 0
+        for m in re.finditer('\[quote\]', raw):
+            cur = m.start()
+            if cur < end:
+                start = cur
+            else:
+                break
+
+        clip = raw[start:end+8]
+        ro1 = re.compile(
+            r'\[quote\]\[pid=(\d+?),.+?\[uid.*?\](.+?)\[/uid\].*?\((\d{4}.+?)\):\[/b\](.+?)\[/quote\]((?:\n){0,2})', flags=re.S)
+        # [0]pid [1]原作者 [2]时间 [3]说的东西
+        rex = ro1.findall(clip)
+        for ritem in rex:
+            quotetext = ritem[3]
+            quotetext = quotetext.replace('\n', '\n>')
+            quoteauthor = ritem[1]
+            # appendpid.append(int(ritem[0])) #这里会有原文的，就不append了
+            if quoteauthor[:7] == '#anony_':
+                # TODO: https://img4.nga.178.com/common_res/js_commonui.js commonui.anonyName 之后再整
+                quoteauthor = '匿' + quoteauthor[-6:]
+            raw = raw.replace(clip,'>[jump](#pid%s) %s(%s) said:%s\n\n' %
+                        (ritem[0], quoteauthor, ritem[2], quotetext))
+            # raw = raw.replace(re.search(r'\[quote\].+?\[uid.*?\](.+?)\[/uid\].*?\((\d{4}.+?)\):\[/b\](.+?)\[/quote\]',
+            # raw, flags=re.S).group(), '>%s(%s) said:%s' % (quoteauthor, ritem[1], quotetext))
 
     ro2 = re.compile(
         r'\[b\]Reply to \[pid=(\d+?),.+? Post by \[uid.*?\](.+?)\[\/uid\].+?\((.+?)\)\[\/b\]((?:\n){0,2})', flags=re.S)

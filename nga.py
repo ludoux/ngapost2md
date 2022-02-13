@@ -131,13 +131,22 @@ def makefile():
 def main():
     global tid
     if cookies['ngaPassportUid'][0] == '_' or cookies['ngaPassportCid'][0] == '_':
-        print('Please edit cookies info in the code file first...')
+        print('Please edit *cookies* info in the code file first... ref: https://github.com/ludoux/ngapost2md/issues/19#issuecomment-784176804 ')
+        input('Press to exit.')
+        exit(0)
+    print('Checking for updates...')
+    if(requests.get('http://gitee.com/ludoux/check-update/raw/master/ngapost2md/version.txt').text != '1'):
+        print('>>>New version found! Please visit https://github.com/ludoux/ngapost2md and use the lastest version!<<<')
+        input('Press to exit.')
+        exit(0)
+    else:
+        print('Using latest version right now.')
     tid = int(input('tid:'))
     try:
         holder()
     except Exception as e:
         print('Oops! %s' % e)
-    input('press to exit.')
+    input('Press to exit.')
 
 
 def holder():

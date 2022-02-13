@@ -4,6 +4,8 @@
 
 支持增量爬楼，支持引用内容的识别（格式可能还有问题），和 ~~（部分）ac娘表情的转义（需要到release页面下[smile.zip](https://github.com/ludoux/ngapost2md/releases/tag/alpha)）~~ 2020.8 后的版本 (nga.py 和 nga_format.py) 不再使用本地 smile.zip 表情包资源，**转为引用在线表情资源。这样子可以支持全部表情包**，但是 ac 娘表情就没有之前本地资源版本那么高清了。
 
+2022 年新版在每次运行前，会访问 gitee 以检查版本信息，若有新版会提示并自行退出，请下载最新版本代码运行即可。若出现问题请自行移除相关检查更新代码。
+
 
 
 ## 使用指引
@@ -35,7 +37,7 @@
 - newline 换行
 - pic 图片（会下载下来）
 - smile 表情（只是引用在线资源）
-- quote 回复与引用（阔以 jump 和 append 在最后 [#12](https://github.com/ludoux/ngapost2md/issues/12)）
+- quote 回复与引用（阔以 jump 和 append 在最后 [#12](https://github.com/ludoux/ngapost2md/issues/12)）（多个 quote [#33](https://github.com/ludoux/ngapost2md/issues/33)）
 - strikeout 删除线
 - url 超链接
 - align 对齐
