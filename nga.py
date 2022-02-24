@@ -135,7 +135,7 @@ def main():
         input('Press to exit.')
         exit(0)
     print('Checking for updates...')
-    if(requests.get('http://gitee.com/ludoux/check-update/raw/master/ngapost2md/version.txt').text != '1'):
+    if(requests.get('http://gitee.com/ludoux/check-update/raw/master/ngapost2md/version.txt').text != '2'):
         print('>>>New version found! Please visit https://github.com/ludoux/ngapost2md and use the lastest version!<<<')
         input('Press to exit.')
         exit(0)

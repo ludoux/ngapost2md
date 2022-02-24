@@ -293,7 +293,7 @@ def pic(raw, tid, floorindex, total):
             bytes(url, encoding='utf-8')).hexdigest()[2:8] + url[-6:]
         if os.path.exists('./%d/%s' % (tid, filename)) == False:
             util_down(url, ('./%d' % tid), filename, '')
-            print('down pic:./%d/%s Floor[%d/%d]' %
+            print('down pic:   ./%d/%s Floor[%d/%d]' %
                   (tid, filename, floorindex, total))
         raw = raw.replace(('[img]%s[/img]' %
                            ritem), ('![img](./%s)' % filename))
@@ -434,12 +434,27 @@ def audio(raw, tid, floorindex, total):
             bytes(url, encoding='utf-8')).hexdigest()[2:8] + url[-6:]
         if os.path.exists('./%d/%s' % (tid, filename)) == False:
             util_down(url, ('./%d' % tid), filename, str(floorindex) + '_')
-            print('down audio:./%d/%s Floor[%d/%d]' %
+            print('down audio: ./%d/%s Floor[%d/%d]' %
                   (tid, filename, floorindex, total))
         raw = raw.replace(('[flash=audio]%s[/flash]' %
                            ori), ('<存在一音频: %s , %s>' % (str(floorindex) + '_' + filename, dura)))
     return raw
 
+def video(raw, tid, floorindex, total):
+    rex = re.findall(r'(?<=\[flash=video\]).+?(?=\[/flash\])', raw)
+    for ritem in rex:
+        url = str(ritem)
+        if url[0:2] == './':
+            url = 'https://img.nga.178.com/attachments/' + url[2:]
+        filename = hashlib.md5(
+            bytes(url, encoding='utf-8')).hexdigest()[2:8] + url[-6:]
+        if os.path.exists('./%d/%s' % (tid, filename)) == False:
+            util_down(url, ('./%d' % tid), filename, '')
+            print('down video: ./%d/%s Floor[%d/%d]' %
+                  (tid, filename, floorindex, total))
+        raw = raw.replace(('[flash=video]%s[/flash]' %
+                           ritem), ('<存在一视频: %s>' % (filename)))
+    return raw
 
 def format(raw, tid, floorindex, total, errtxt):
     global errortext
@@ -451,6 +466,7 @@ def format(raw, tid, floorindex, total, errtxt):
         raw = anony(raw)
         raw = pic(raw, tid, floorindex, total)
         raw = audio(raw, tid, floorindex, total)
+        raw = video(raw, tid, floorindex, total)
         raw = smile(raw)
         raw = quote(raw)
         raw = strikeout(raw)
