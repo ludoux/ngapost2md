@@ -1,12 +1,8 @@
-# ngapost2md
+# ngapost2md ver.[2]
 
-快速爬楼存回复人+时间+内容，支持保存正文内的（最高清的）图片（仅附件的图但没有附在正文内的暂时不支持）。
+快速爬楼存回复人+时间+内容，支持保存正文图片、音视频等，支持常见 bbcode 格式（具体见 README 后半部分）。
 
-支持增量爬楼，支持引用内容的识别（格式可能还有问题），和 ~~（部分）ac娘表情的转义（需要到release页面下[smile.zip](https://github.com/ludoux/ngapost2md/releases/tag/alpha)）~~ 2020.8 后的版本 (nga.py 和 nga_format.py) 不再使用本地 smile.zip 表情包资源，**转为引用在线表情资源。这样子可以支持全部表情包**，但是 ac 娘表情就没有之前本地资源版本那么高清了。
-
-2022 年新版在每次运行前，会访问 gitee 以检查版本信息，若有新版会提示并自行退出，请下载最新版本代码运行即可。若出现问题请自行移除相关检查更新代码。
-
-
+**2022 年新版在每次运行前，会访问 gitee 以检查版本信息，若有新版会提示并自行退出，请下载最新版本代码（`nga.py` 与 `nga_format.py`）运行即可。若出现问题请自行移除相关检查更新代码。**
 
 ## 使用指引
 
@@ -44,6 +40,7 @@
 - collapse 折叠 （[#10](https://github.com/ludoux/ngapost2md/issues/10)）
 - anony 匿名 （[#11](https://github.com/ludoux/ngapost2md/issues/11)）
 - audio 音频 （[#15](https://github.com/ludoux/ngapost2md/issues/15)）
+- video 音频
 
 不资瓷并且常出现的有：
 

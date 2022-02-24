@@ -1,4 +1,5 @@
 # -*- coding: UTF-8 -*-
+# https://github.com/ludoux/ngapost2md
 import re
 import requests
 import os
@@ -17,7 +18,7 @@ cookies = {
     'ngaPassportCid': '__',
 }
 
-
+ver = '2'
 totalfloor = []  # [0]int几层，[1]int pid,  [2]str时间，[3]str昵称，[4]str内容，[5]int赞数
 tid = 0
 title = 'title'
@@ -130,13 +131,15 @@ def makefile():
 
 def main():
     global tid
+    global ver
     if cookies['ngaPassportUid'][0] == '_' or cookies['ngaPassportCid'][0] == '_':
         print('Please edit *cookies* info in the code file first... ref: https://github.com/ludoux/ngapost2md/issues/19#issuecomment-784176804 ')
         input('Press to exit.')
         exit(0)
     print('Checking for updates...')
-    if(requests.get('http://gitee.com/ludoux/check-update/raw/master/ngapost2md/version.txt').text != '2'):
-        print('>>>New version found! Please visit https://github.com/ludoux/ngapost2md and use the lastest version!<<<')
+    lastestver = requests.get('http://gitee.com/ludoux/check-update/raw/master/ngapost2md/version.txt').text
+    if(lastestver != ver):
+        print('>>>New version found![%s => %s]<<<\nPlease visit https://github.com/ludoux/ngapost2md and use the lastest version!' % (ver, lastestver))
         input('Press to exit.')
         exit(0)
     else:
