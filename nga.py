@@ -9,6 +9,7 @@ from contextlib import closing
 import json
 import math
 import nga_format
+import random
 
 # =============先修改
 headers = {
@@ -16,9 +17,11 @@ headers = {
 cookies = {
     'ngaPassportUid': '__',
     'ngaPassportCid': '__',
+    'lastvisit': 'DONT MODIFY',
+    'lastpath': 'DONT MODIFY',
 }
 
-ver = '2'
+ver = '3'
 totalfloor = []  # [0]int几层，[1]int pid,  [2]str时间，[3]str昵称，[4]str内容，[5]int赞数
 tid = 0
 title = 'title'
@@ -37,6 +40,8 @@ def single(page):
         ('lite', 'js')
     )
     ss1 = requests.Session()
+    cookies['lastvisit'] = str(int(time.time() - random.randint(5, 30)))
+    cookies['lastpath'] = "/read.php?tid=" + str(tid)
     get = ss1.get('https://bbs.nga.cn/read.php', headers=headers,
                   params=params, cookies=cookies)
     get.encoding = 'GBK'
@@ -55,8 +60,10 @@ def single(page):
     ttext = re.search(r',"__T":(.+?),"__F":', content, flags=re.S).group(1)
     tdict = json.loads(ttext, strict=False)  # 帖子的一些数据
 
-    rows = int(re.search(r'"__ROWS":([0-9]+?),"', content, flags=re.S).group(1))
-    rowspage = int(re.search(r'"__R__ROWS_PAGE":([0-9]+?),"', content, flags=re.S).group(1))
+    rows = int(
+        re.search(r'"__ROWS":([0-9]+?),"', content, flags=re.S).group(1))
+    rowspage = int(
+        re.search(r'"__R__ROWS_PAGE":([0-9]+?),"', content, flags=re.S).group(1))
     maxpages = math.ceil(float(rows)/rowspage)
 
     global title
@@ -84,8 +91,8 @@ def single(page):
                     commentreply.remove(one)
 
     return page <= maxpages
-    ## lastposter 对不上 “且”不是只有主楼的情况
-    #return int(tdict['replies']) > totalfloor[len(totalfloor)-1][0] and not(len(totalfloor) == 1 and totalfloor[0][0] == 0)
+    # lastposter 对不上 “且”不是只有主楼的情况
+    # return int(tdict['replies']) > totalfloor[len(totalfloor)-1][0] and not(len(totalfloor) == 1 and totalfloor[0][0] == 0)
 
 
 def makefile():
@@ -137,9 +144,11 @@ def main():
         input('Press to exit.')
         exit(0)
     print('Checking for updates...')
-    lastestver = requests.get('http://gitee.com/ludoux/check-update/raw/master/ngapost2md/version.txt').text
+    lastestver = requests.get(
+        'http://gitee.com/ludoux/check-update/raw/master/ngapost2md/version.txt').text
     if(lastestver != ver):
-        print('>>>New version found![%s => %s]<<<\nPlease visit https://github.com/ludoux/ngapost2md and use the lastest version!' % (ver, lastestver))
+        print(
+            '>>>New version found![%s => %s]<<<\nPlease visit https://github.com/ludoux/ngapost2md and use the lastest version!' % (ver, lastestver))
         input('Press to exit.')
         exit(0)
     else:
