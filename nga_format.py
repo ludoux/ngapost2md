@@ -376,7 +376,7 @@ def url(raw):
 
 
 def align(raw):
-    rex = re.findall(r'\[align=(.+?)\](.+?)\[\/align\]', raw)
+    rex = re.findall(r'\[align=(.+?)\](.+?)\[\/align\]', raw, flags=re.S)
     for ritem in rex:
         raw = raw.replace('[align=%s]%s[/align]' % (ritem[0], ritem[1]),
                           '<div style="text-align:%s">%s</div>' % (ritem[0], ritem[1]))
@@ -458,14 +458,14 @@ def video(raw, tid, floorindex, total):
     return raw
 
 def color(raw):
-    rex = re.findall(r'\[color=(.+?)\](.+?)\[/color\]', raw)
+    rex = re.findall(r'\[color=(.+?)\](.+?)\[/color\]', raw, flags=re.S)
     for ritem in rex:
         raw = raw.replace('[color=%s]%s[/color]' % (ritem[0],ritem[1]),
                        '<span style="color:%s;">%s</span>' % (ritem[0],ritem[1]) )
     return raw
 
 def size(raw):
-    rex=re.findall(r'\[size=(.+?)\](.+?)\[/size\]', raw)
+    rex=re.findall(r'\[size=(.+?)\](.+?)\[/size\]', raw, flags=re.S)
     for ritem in rex:
         raw = raw.replace('[size=%s]%s[/size]' % (ritem[0], ritem[1]),
                          '<span style="font-size:%s">%s</span>' % (ritem[0], ritem[1]) )
@@ -478,11 +478,11 @@ def table(raw):
     return raw
 
 def bold(raw):
-    raw = re.sub(r'\[/?b\]', '**', raw)
+    raw = re.sub(r'\[/?b\]', '**', raw, flags=re.S)
     return raw
 
 def italic(raw):
-    raw = re.sub(r'\[/?i\]', '*', raw)
+    raw = re.sub(r'\[/?i\]', '*', raw, flags=re.S)
     return raw
 
 def underscore(raw):
@@ -490,8 +490,8 @@ def underscore(raw):
     raw = raw.replace('[/u]', '</span>')
     return raw
 
-def float(raw):
-    raw = re.sub(r'\[/(l|r)\]', '</span>', raw)
+def floating(raw):
+    raw = re.sub(r'\[/(l|r)\]', '</span>', raw, flags=re.S)
     raw = raw.replace('[l]', '<span style="float: left;">')
     raw = raw.replace('[r]', '<span style="float: right;">')
     return raw
@@ -519,7 +519,7 @@ def format(raw, tid, floorindex, total, errtxt):
         raw = bold(raw)
         raw = italic(raw)
         raw = underscore(raw)
-        raw = float(raw)
+        raw = floating(raw)
     except Exception as e:
         print('Error occured (@F.%d): %s' % (floorindex, e))
         errortext = errortext + 'Error occured (@F.%d).' % floorindex
