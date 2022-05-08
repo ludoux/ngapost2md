@@ -490,6 +490,12 @@ def underscore(raw):
     raw = raw.replace('[/u]', '</span>')
     return raw
 
+def float(raw):
+    raw = re.sub(r'\[/(l|r)\]', '</span>', raw)
+    raw = raw.replace('[l]', '<span style="float: left;">')
+    raw = raw.replace('[r]', '<span style="float: right;">')
+    return raw
+
 def format(raw, tid, floorindex, total, errtxt):
     global errortext
     global appendpid  # 需要主程序追加在后面的pid的正文，这个在quote里面修改（里面都是int
@@ -513,6 +519,7 @@ def format(raw, tid, floorindex, total, errtxt):
         raw = bold(raw)
         raw = italic(raw)
         raw = underscore(raw)
+        raw = float(raw)
     except Exception as e:
         print('Error occured (@F.%d): %s' % (floorindex, e))
         errortext = errortext + 'Error occured (@F.%d).' % floorindex
