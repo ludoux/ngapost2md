@@ -494,6 +494,9 @@ def format(raw, tid, floorindex, total, errtxt):
         raw = url(raw)
         raw = align(raw)
         raw = collapse(raw)
+        raw = color(raw)
+        raw = size(raw)
+        raw = table(raw)
     except Exception as e:
         print('Error occured (@F.%d): %s' % (floorindex, e))
         errortext = errortext + 'Error occured (@F.%d).' % floorindex
