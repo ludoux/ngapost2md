@@ -477,6 +477,19 @@ def table(raw):
     raw = re.sub(r'<(tr|td)>', '<\g<1> style="border: 1px solid;">', raw) #这两行格式化表格
     return raw
 
+def bold(raw):
+    raw = re.sub(r'\[/?b\]', '**', raw)
+    return raw
+
+def italic(raw):
+    raw = re.sub(r'\[/?i\]', '*', raw)
+    return raw
+
+def underscore(raw):
+    raw = raw.replace('[u]', '<span style="text-decoration: underline;">')
+    raw = raw.replace('[/u]', '</span>')
+    return raw
+
 def format(raw, tid, floorindex, total, errtxt):
     global errortext
     global appendpid  # 需要主程序追加在后面的pid的正文，这个在quote里面修改（里面都是int
@@ -497,6 +510,9 @@ def format(raw, tid, floorindex, total, errtxt):
         raw = color(raw)
         raw = size(raw)
         raw = table(raw)
+        raw = bold(raw)
+        raw = italic(raw)
+        raw = underscore(raw)
     except Exception as e:
         print('Error occured (@F.%d): %s' % (floorindex, e))
         errortext = errortext + 'Error occured (@F.%d).' % floorindex
