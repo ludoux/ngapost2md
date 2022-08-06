@@ -22,7 +22,7 @@ cookies = {
 }
 
 ver = '3'
-totalfloor = []  # [0]int几层，[1]int pid,  [2]str时间，[3]str昵称，[4]str内容，[5]int赞数
+totalfloor = []  # [0]int几层，[1]int pid,  [2]str时间，[3]str昵称，[4]str内容，[5]int赞数, [6]int authorId
 tid = 0
 title = 'title'
 localmaxpage = 1
@@ -75,19 +75,19 @@ def single(page):
         if 'comment' in replydict[str(i)]:  # 该楼层下挂有评论，先+comment，下面到正经楼层
             for one in replydict[str(i)]['comment']:
                 commentreply.append([int(replydict[str(i)]['comment'][one]['pid']), replydict[str(i)]['comment'][one]['postdate'], userdict[str(
-                    replydict[str(i)]['comment'][one]['authorid'])]['username'], '[评论] ' + str(replydict[str(i)]['comment'][one]['content']), int(replydict[str(i)]['comment'][one]['score'])])
+                    replydict[str(i)]['comment'][one]['authorid'])]['username'], '[评论] ' + str(replydict[str(i)]['comment'][one]['content']), int(replydict[str(i)]['comment'][one]['score']), int(replydict[str(i)]['comment'][one]['authorid'])])
 
         if 'content' in replydict[str(i)]:  # 正经楼层
             commentnumtxt = ''
             if one != '':
                 commentnumtxt = '[评论数:' + str(int(one) + 1) + ']\n\n'
             totalfloor.append([int(replydict[str(i)]['lou']), int(replydict[str(i)]['pid']), replydict[str(i)]['postdate'], userdict[str(
-                replydict[str(i)]['authorid'])]['username'], commentnumtxt + str(replydict[str(i)]['content']), int(replydict[str(i)]['score'])])
+                replydict[str(i)]['authorid'])]['username'], commentnumtxt + str(replydict[str(i)]['content']), int(replydict[str(i)]['score']), int(replydict[str(i)]['authorid'])])
         else:  # 评论楼层，无content
             for one in commentreply:
                 if one[0] == int(replydict[str(i)]['pid']):
                     totalfloor.append([int(replydict[str(i)]['lou']), int(
-                        replydict[str(i)]['pid']), one[1], one[2], one[3], one[4]])
+                        replydict[str(i)]['pid']), one[1], one[2], one[3], one[4], one[5]])
                     commentreply.remove(one)
 
     return page <= maxpages
@@ -114,7 +114,7 @@ def makefile():
                 raw = str(onefloor[4])
 
                 rt = nga_format.format(
-                    raw, tid, onefloor[0], total, errortext)  # format的是每一层的
+                    raw, tid, onefloor[1], onefloor[6], onefloor[0], total, errortext)  # format的是每一层的
                 raw = rt[0]
                 errortext = rt[1]
                 appendpid = rt[2]
