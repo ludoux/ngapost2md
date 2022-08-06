@@ -496,7 +496,45 @@ def floating(raw):
     raw = raw.replace('[r]', '<span style="float: right;">')
     return raw
 
-def format(raw, tid, floorindex, total, errtxt):
+def dice(raw, tid, pid, authorid):
+    """
+    example:
+    [dice]2d100+10[/dice] 
+    to
+    <div class="dice">2d100+10=2d100(23+55)+10=88</div>
+    """
+    seed = authorid+tid+pid
+
+    def rollDice(matchObj):
+        sum = 0
+
+        def genRand(matchObj):
+            nonlocal seed, sum
+            dic = matchObj.groupdict()
+            time = dic['time'] and int(dic['time']) or 1
+            dice = int(dic['dice'])
+            result = ''
+            for i in range(time):
+                if i != 0:
+                    result += '+'
+                seed = (seed*9301+49297) % 233280
+                num = floor(seed/233280*dice)+1
+                sum += num
+                result += str(num)
+            return matchObj.group(0)+'('+result+')'
+
+        def addConst(matchObj):
+            nonlocal sum
+            sum += int(matchObj.group(0))
+            return matchObj.group(0)
+        text = re.sub(r'(?<![d0-9])\d+(?![d0-9])', addConst, matchObj.group(1))
+        text = re.sub(r'(?P<time>\d{0,2})d(?P<dice>\d+)',
+                      genRand, text)
+        return '<div class="dice">'+matchObj.group(1)+'='+text+'='+str(sum)+'</div>'
+    raw = re.sub(r'\[dice\](.+?)\[/dice\]', rollDice, raw)
+    return raw
+
+def format(raw, tid, pid, authorid, floorindex, total, errtxt):
     global errortext
     global appendpid  # 需要主程序追加在后面的pid的正文，这个在quote里面修改（里面都是int
     errortext = errtxt
@@ -520,6 +558,7 @@ def format(raw, tid, floorindex, total, errtxt):
         raw = italic(raw)
         raw = underscore(raw)
         raw = floating(raw)
+        raw = dice(raw, tid, pid, authorid)
     except Exception as e:
         print('Error occured (@F.%d): %s' % (floorindex, e))
         errortext = errortext + 'Error occured (@F.%d).' % floorindex
