@@ -22,7 +22,7 @@ cookies = {
 }
 
 ver = '3'
-totalfloor = []  # [0]int几层，[1]int pid,  [2]str时间，[3]str昵称，[4]str内容，[5]int赞数, [6]int authorId
+totalfloor = []  # [0]int几层，[1]int pid,  [2]str时间，[3]str昵称，[4]str内容，[5]int赞数, [6]int authorId [7]str ip地址
 tid = 0
 title = 'title'
 localmaxpage = 1
@@ -53,7 +53,11 @@ def single(page):
     # 这里处理一次，然后在回复内容的时候会调用nga_format.format对内容中的用户名引用会处理
     usertext = nga_format.anony(usertext)
     userdict = json.loads(usertext, strict=False)  # 牵涉到的用户信息
-
+    # 根据uid获取每个用户的ip地址
+    userUid = next(iter(userdict)) # 每层楼用户的uid
+    iptext = requests.get(url='https://bbs.nga.cn/nuke.php?__lib=ucp&__act=get&uid='+userUid+'&lite=js')
+    ip = re.search(r'"ipLoc":"(.+?)","',iptext.text,flags=re.S).group(1)
+    
     replytext = re.search(r',"__R":(.+?),"__T":', content, flags=re.S).group(1)
     replydict = json.loads(replytext, strict=False)  # 具体的回复楼
 
@@ -75,14 +79,14 @@ def single(page):
         if 'comment' in replydict[str(i)]:  # 该楼层下挂有评论，先+comment，下面到正经楼层
             for one in replydict[str(i)]['comment']:
                 commentreply.append([int(replydict[str(i)]['comment'][one]['pid']), replydict[str(i)]['comment'][one]['postdate'], userdict[str(
-                    replydict[str(i)]['comment'][one]['authorid'])]['username'], '[评论] ' + str(replydict[str(i)]['comment'][one]['content']), int(replydict[str(i)]['comment'][one]['score']), int(replydict[str(i)]['comment'][one]['authorid'])])
+                    replydict[str(i)]['comment'][one]['authorid'])]['username'], '[评论] ' + str(replydict[str(i)]['comment'][one]['content']), int(replydict[str(i)]['comment'][one]['score']), int(replydict[str(i)]['comment'][one]['authorid']),str(ip)])
 
         if 'content' in replydict[str(i)]:  # 正经楼层
             commentnumtxt = ''
             if one != '':
                 commentnumtxt = '[评论数:' + str(int(one) + 1) + ']\n\n'
             totalfloor.append([int(replydict[str(i)]['lou']), int(replydict[str(i)]['pid']), replydict[str(i)]['postdate'], userdict[str(
-                replydict[str(i)]['authorid'])]['username'], commentnumtxt + str(replydict[str(i)]['content']), int(replydict[str(i)]['score']), int(replydict[str(i)]['authorid'])])
+                replydict[str(i)]['authorid'])]['username'], commentnumtxt + str(replydict[str(i)]['content']), int(replydict[str(i)]['score']), int(replydict[str(i)]['authorid']),str(ip) ])
         else:  # 评论楼层，无content
             for one in commentreply:
                 if one[0] == int(replydict[str(i)]['pid']):
@@ -109,8 +113,8 @@ def makefile():
                     f.write(
                         '### %s\n\n(c) ludoux [GitHub Repo](https://github.com/ludoux/ngapost2md)\n\n' % title)
 
-                f.write('----\n##### <span id="pid%d">%d.[%d] \<pid:%d\> %s by %s</span>\n' %
-                        (onefloor[1], onefloor[0], onefloor[5], onefloor[1], onefloor[2], onefloor[3]))
+                f.write('----\n##### <span id="pid%d">%d.[%d] \<pid:%d\> %s by %s ip地址:%s</span>\n' %
+                        (onefloor[1], onefloor[0], onefloor[5], onefloor[1], onefloor[2], onefloor[3],onefloor[7]))
                 raw = str(onefloor[4])
 
                 rt = nga_format.format(
@@ -143,16 +147,6 @@ def main():
         print('Please edit *cookies* info in the code file first... ref: https://github.com/ludoux/ngapost2md/issues/19#issuecomment-784176804 ')
         input('Press to exit.')
         exit(0)
-    print('Checking for updates...')
-    lastestver = requests.get(
-        'http://gitee.com/ludoux/check-update/raw/master/ngapost2md/version.txt').text
-    if(lastestver != ver):
-        print(
-            '>>>New version found![%s => %s]<<<\nPlease visit https://github.com/ludoux/ngapost2md and use the lastest version!' % (ver, lastestver))
-        input('Press to exit.')
-        exit(0)
-    else:
-        print('Using latest version right now.')
     tid = int(input('tid:'))
     try:
         holder()
