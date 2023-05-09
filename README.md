@@ -1,4 +1,4 @@
-# ngapost2md ver.[neo<Pre>]
+# ngapost2md ver.[neo\<Pre>]
 
 快速爬楼存回复人+时间+内容，支持保存正文图片、音视频等，支持常见 bbcode 格式（具体见 README 后半部分）。
 
@@ -24,7 +24,7 @@
 - quote 回复与引用（阔以 jump 和 append 在最后 [#12](https://github.com/ludoux/ngapost2md/issues/12)）（多个 quote [#33](https://github.com/ludoux/ngapost2md/issues/33)）
 - strikeout 删除线
 - url 超链接
-- ~~align 对齐 ~~ 目前 Go 版本不支持
+- ~~align 对齐~~ 目前 Go 版本不支持
 - ~~collapse 折叠 （[#10](https://github.com/ludoux/ngapost2md/issues/10)）~~ 目前 Go 版本不支持
 - anony 匿名 （[#11](https://github.com/ludoux/ngapost2md/issues/11)）
 - ~~audio 音频 （[#15](https://github.com/ludoux/ngapost2md/issues/15)）~~ 目前 Go 版本不支持

@@ -17,7 +17,8 @@ func main() {
 	}
 	nga.BASE_URL = cfg.Section("network").Key("baseurl").String()
 	nga.UA = cfg.Section("network").Key("ua").String()
-	nga.THREAD_COUNT, _ = cfg.Section("network").Key("thread").Int()
+	//默认线程数为2,仅支持1~3
+	nga.THREAD_COUNT = cfg.Section("network").Key("thread").InInt(2, []int{1, 2, 3})
 	nga.Client = nga.NewNgaClient()
 
 	tie := nga.Tiezi{}

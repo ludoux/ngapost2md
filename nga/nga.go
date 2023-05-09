@@ -20,8 +20,8 @@ import (
 
 var (
 	VERSION      = "NEO1"
-	THREAD_COUNT = 3
-	DELAY_MS     = 100
+	THREAD_COUNT = 2
+	DELAY_MS     = 330
 	mutex        sync.Mutex
 )
 
