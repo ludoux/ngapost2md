@@ -41,6 +41,7 @@
 - anony 匿名 （[#11](https://github.com/ludoux/ngapost2md/issues/11)）
 - audio 音频 （[#15](https://github.com/ludoux/ngapost2md/issues/15)）
 - video 音频
+- 用户基于 IP 的位置 （[#45](https://github.com/ludoux/ngapost2md/pull/45)）
 
 不资瓷并且常出现的有：
 
@@ -50,3 +51,5 @@
 ## Special Thanks
 
 特别感谢 [crella6](https://github.com/crella6) 的捉虫以及意见！
+
+感谢 [proItheus](https://github.com/proItheus) 及 [zsq @oarinv](https://github.com/oarinv) 对此项目的帮助！
