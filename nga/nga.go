@@ -19,22 +19,24 @@ import (
 )
 
 var (
-	VERSION      = "NEO1"
-	THREAD_COUNT = 2
-	DELAY_MS     = 330
-	mutex        sync.Mutex
+	VERSION         = "NEO1"
+	THREAD_COUNT    = 2
+	DELAY_MS        = 330
+	GET_IP_LOCATION = false
+	mutex           sync.Mutex
 )
 
 type Floor struct {
-	Lou       int
-	Pid       int
-	Timestamp int64
-	Username  string
-	UserId    int
-	Content   string
-	LikeNum   int
-	AppendPid []int
-	Comments  Floors
+	Lou        int
+	Pid        int
+	Timestamp  int64
+	Username   string
+	IpLocation string
+	UserId     int
+	Content    string
+	LikeNum    int
+	AppendPid  []int
+	Comments   Floors
 }
 type Floors []Floor
 type Tiezi struct {
@@ -219,6 +221,23 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 
 	//循环尾部有判断是否有comments且是否进去的操作，请注意
 	for {
+		//假如要获取IP位置则在此处获取
+		resp, err := Client.R().SetFormData(map[string]string{
+			"uid": cast.ToString(floor.UserId),
+		}).Post("nuke.php?__lib=ucp&__act=get&__output=8")
+		if err != nil {
+			log.Println(err.Error())
+		} else {
+			value_str, err := jsonparser.GetString(resp.Bytes(), "data", "0", "ipLoc")
+			if err != nil {
+				log.Println("获取用户IP位置失败: " + err.Error())
+			} else {
+				floor.IpLocation = value_str
+			}
+
+		}
+		//获取IP位置结束
+
 		cont := floor.Content
 		cont = strings.ReplaceAll(cont, `\u0026`, "&")
 		cont = strings.ReplaceAll(cont, `\u003c`, "<")
@@ -387,6 +406,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 			floor.AppendPid = append(floor.AppendPid, cast.ToInt(quotePid))
 		}
 		floor.Content = cont
+		//到这里，fix已经结束了
 
 		//判断是否有、是否有剩余下挂comment需要处理
 		if curCommentI+1 < len(oriFloor.Comments) {
@@ -443,7 +463,11 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 		if floor.Pid == 0 {
 			_, _ = f.WriteString(fmt.Sprintf("### %s\n\nMade by ngapost2md (c) ludoux [GitHub Repo](https://github.com/ludoux/ngapost2md)\n\n", tiezi.Title))
 		}
-		_, _ = f.WriteString(fmt.Sprintf("----\n##### <span id=\"pid%d\">%d.[%d] \\<pid:%d\\> %s by %s</span>\n%s", floor.Pid, floor.Lou, floor.LikeNum, floor.Pid, ts2t(floor.Timestamp), floor.Username, floor.Content))
+		IpLocation_str := ""
+		if floor.IpLocation != "" {
+			IpLocation_str = "\\(" + floor.IpLocation + "\\)"
+		}
+		_, _ = f.WriteString(fmt.Sprintf("----\n##### <span id=\"pid%d\">%d.[%d] \\<pid:%d\\> %s by %s%s</span>\n%s", floor.Pid, floor.Lou, floor.LikeNum, floor.Pid, ts2t(floor.Timestamp), floor.Username, IpLocation_str, floor.Content))
 		if floor.Comments != nil {
 			_, _ = f.WriteString("\n*---下挂评论---*")
 			for _, itt := range floor.Comments {

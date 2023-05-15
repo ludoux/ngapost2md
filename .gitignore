@@ -20,3 +20,7 @@ main
 
 # Go workspace file
 go.work
+
+# Personal config files
+cookies.json
+config.ini
