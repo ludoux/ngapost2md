@@ -222,19 +222,20 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 	//循环尾部有判断是否有comments且是否进去的操作，请注意
 	for {
 		//假如要获取IP位置则在此处获取
-		resp, err := Client.R().SetFormData(map[string]string{
-			"uid": cast.ToString(floor.UserId),
-		}).Post("nuke.php?__lib=ucp&__act=get&__output=8")
-		if err != nil {
-			log.Println(err.Error())
-		} else {
-			value_str, err := jsonparser.GetString(resp.Bytes(), "data", "0", "ipLoc")
+		if GET_IP_LOCATION {
+			resp, err := Client.R().SetFormData(map[string]string{
+				"uid": cast.ToString(floor.UserId),
+			}).Post("nuke.php?__lib=ucp&__act=get&__output=8")
 			if err != nil {
-				log.Println("获取用户IP位置失败: " + err.Error())
+				log.Println(err.Error())
 			} else {
-				floor.IpLocation = value_str
+				value_str, err := jsonparser.GetString(resp.Bytes(), "data", "0", "ipLoc")
+				if err != nil {
+					log.Println("获取用户IP位置失败: " + err.Error())
+				} else {
+					floor.IpLocation = value_str
+				}
 			}
-
 		}
 		//获取IP位置结束
 
