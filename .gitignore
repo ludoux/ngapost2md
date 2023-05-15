@@ -24,3 +24,4 @@ go.work
 # Personal config files
 cookies.json
 config.ini
+.vscode/launch.json

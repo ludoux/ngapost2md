@@ -10,7 +10,7 @@
 
 1. 确保 `config.ini` 与 `cookies.json` 文件存在且与可执行文件在同一目录下（平级关系）
 2. 修改 `config.ini` 与 `cookies.json` 内的 `MODIFY_ME` 内容为相关内容
-3. 带参数（参数为帖子 tid）运行可执行文件
+3. 带参数（参数为帖子 tid）运行可执行文件，如 (Linux) `./app 5935947` 或者 (Windows) `.\app.exe 5935947`
 
 ### 图片快速指引
 
@@ -32,6 +32,7 @@
 - anony 匿名 （[#11](https://github.com/ludoux/ngapost2md/issues/11)）
 - ~~audio 音频 （[#15](https://github.com/ludoux/ngapost2md/issues/15)）~~ 目前 Go 版本不支持
 - ~~video 音频~~ 目前 Go 版本不支持
+- 用户基于 IP 的位置 （[#45](https://github.com/ludoux/ngapost2md/pull/45)）
 
 不资瓷并且常出现的有：
 

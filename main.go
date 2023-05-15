@@ -10,6 +10,9 @@ import (
 )
 
 func main() {
+	fmt.Println("ngapost2md (c) ludoux [ GitHub: https://github.com/ludoux/ngapost2md/tree/neo ]")
+	fmt.Println("Version: " + nga.VERSION)
+	fmt.Println("")
 	cfg, err := ini.Load("config.ini")
 	if err != nil {
 		fmt.Printf("Fail to find or read config.ini file: %v", err)
@@ -24,19 +27,22 @@ func main() {
 
 	tie := nga.Tiezi{}
 
-	if len(os.Args) != 2 {
+	if len(os.Args) != 2 && len(os.Args) != 3 {
 		fmt.Println("传参数目错误")
 		os.Exit(1)
 	}
-	if _, err := os.Stat(cast.ToString(os.Args[1])); os.IsNotExist(err) {
-		tie.InitFromWeb(cast.ToInt(os.Args[1]))
-	} else {
-		fmt.Println("存在 tid 文件夹")
-		tie.InitFromLocal(cast.ToInt(os.Args[1]))
+
+	force_max_page := -1
+	if len(os.Args) == 3 {
+		force_max_page = cast.ToInt(os.Args[2])
 	}
 
-	//tie.InitFromWeb(36229275)
-	//tie.InitFromLocal(36229275)
+	if _, err := os.Stat(cast.ToString(os.Args[1])); os.IsNotExist(err) {
+		tie.InitFromWeb(cast.ToInt(os.Args[1]), force_max_page)
+	} else {
+		fmt.Println("存在 tid 文件夹")
+		tie.InitFromLocal(cast.ToInt(os.Args[1]), force_max_page)
+	}
 
 	tie.Download()
 }

@@ -18,12 +18,22 @@ import (
 	"gopkg.in/ini.v1"
 )
 
+// 这里是配置文件可以改的
 var (
-	VERSION         = "NEO1"
 	THREAD_COUNT    = 2
-	DELAY_MS        = 330
 	GET_IP_LOCATION = false
-	mutex           sync.Mutex
+)
+
+// 这里传参可以改
+var (
+	OVERRIDE_WEB_MAX_PAGE = -1 //当>0后则强制仅下载到此页
+)
+
+// 这里配置文件和传参都没法改
+var (
+	VERSION  = "NEO_PRE_0.0.1_20230515"
+	DELAY_MS = 330
+	mutex    sync.Mutex
 )
 
 type Floor struct {
@@ -50,7 +60,8 @@ type Tiezi struct {
 	LocalMaxFloor int
 	FloorCount    int    //包含主楼
 	Floors        Floors //主楼为[0]
-	Timestamp     int64  //page() fixFloorContent()  中会更新
+	HotPosts      Floors
+	Timestamp     int64 //page() fixFloorContent()  中会更新
 	Version       string
 	Assets        map[string]string
 }
@@ -139,10 +150,19 @@ func (it *Tiezi) page(page int) {
 		//总页数
 		value_int, _ = jsonparser.GetInt(resp.Bytes(), "totalPage")
 		it.WebMaxPage = cast.ToInt(value_int)
+		if OVERRIDE_WEB_MAX_PAGE > 0 {
+			//启用了强制仅下载到此页，修改WebMaxPage
+			it.WebMaxPage = OVERRIDE_WEB_MAX_PAGE
+		}
 
 		//楼层数，楼主也算一层
 		value_int, _ = jsonparser.GetInt(resp.Bytes(), "vrows")
 		it.FloorCount = cast.ToInt(value_int - 1)
+		if OVERRIDE_WEB_MAX_PAGE > 0 {
+			//启用了强制仅下载到此页，修改此，以不生成过多的Floors
+			//目前每页其实才20楼，这里写22楼保守一点
+			it.FloorCount = OVERRIDE_WEB_MAX_PAGE * 22
+		}
 
 		//初始化floors个数
 		if it.Floors == nil || len(it.Floors) == 0 {
@@ -151,14 +171,19 @@ func (it *Tiezi) page(page int) {
 				it.Floors[i].Lou = -1
 			}
 		}
-
-		value_byte, _, _, _ := jsonparser.Get(resp.Bytes(), "result")
+		value_byte, dataType, _, _ := jsonparser.Get(resp.Bytes(), "hot_post")
+		if dataType != jsonparser.NotExist {
+			it.HotPosts.ana(value_byte)
+		}
+		value_byte, _, _, _ = jsonparser.Get(resp.Bytes(), "result")
 		it.Floors.ana(value_byte)
 	}
 }
 
 // 初始化主楼和第一页
-func (it *Tiezi) InitFromWeb(tid int) {
+func (it *Tiezi) InitFromWeb(tid int, force_max_page int) {
+	OVERRIDE_WEB_MAX_PAGE = force_max_page
+
 	it.init(tid, true)
 	it.Version = VERSION
 	it.Assets = map[string]string{}
@@ -169,7 +194,9 @@ func (it *Tiezi) InitFromWeb(tid int) {
 }
 
 // 本地已经有生成过，现在来根据local信息来追加下载新楼层。
-func (it *Tiezi) InitFromLocal(tid int) {
+func (it *Tiezi) InitFromLocal(tid int, force_max_page int) {
+	OVERRIDE_WEB_MAX_PAGE = force_max_page
+
 	it.init(tid, false)
 	it.Version = VERSION
 
@@ -463,6 +490,20 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 		}
 		if floor.Pid == 0 {
 			_, _ = f.WriteString(fmt.Sprintf("### %s\n\nMade by ngapost2md (c) ludoux [GitHub Repo](https://github.com/ludoux/ngapost2md)\n\n", tiezi.Title))
+		}
+		if floor.Pid == 0 && len(tiezi.HotPosts) > 0 {
+			_, _ = f.WriteString("##### 热门回复\n\n")
+			for _, v := range tiezi.HotPosts {
+				if v.Lou == -1 {
+					continue
+				}
+				if len([]rune(v.Content)) > 22 {
+					_, _ = f.WriteString(fmt.Sprintf("- [%d楼](#pid%d): %s...\n", v.Lou, v.Pid, string([]rune(v.Content)[0:20])))
+				} else {
+					_, _ = f.WriteString(fmt.Sprintf("- [%d楼](#pid%d): %s...\n", v.Lou, v.Pid, v.Content))
+				}
+			}
+			_, _ = f.WriteString("\n")
 		}
 		IpLocation_str := ""
 		if floor.IpLocation != "" {
