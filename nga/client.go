@@ -2,10 +2,7 @@ package nga
 
 import (
 	"fmt"
-	"log"
-
 	"github.com/imroc/req/v3"
-	cookiejar "github.com/orirawlings/persistent-cookiejar"
 )
 
 type NgaClient struct {
@@ -16,18 +13,12 @@ type NgaClient struct {
 var Client *NgaClient
 var BASE_URL string
 var UA string
+var COOKIE string
 
 func NewNgaClient() *NgaClient {
-	jar, err := cookiejar.New(&cookiejar.Options{
-		Filename: "cookies.json",
-	})
-	if err != nil {
-		log.Fatalf("failed to create persistent cookiejar: %s\n", err.Error())
-	}
 	c := req.C().
-		SetCookieJar(jar).
 		SetBaseURL(BASE_URL).
-		SetCommonHeader("Referer", BASE_URL).
+		SetCommonHeader("Cookie",COOKIE).
 		SetUserAgent(UA).
 		// EnableDump at the request level in request middleware which dump content into
 		// memory (not print to stdout), we can record dump content only when unexpected

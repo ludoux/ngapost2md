@@ -10,16 +10,27 @@ import (
 )
 
 func main() {
+	const Url = "https://bbs.nga.cn"
+	const Ua  = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"
+
 	fmt.Println("ngapost2md (c) ludoux [ GitHub: https://github.com/ludoux/ngapost2md/tree/neo ]")
 	fmt.Println("Version: " + nga.VERSION)
 	fmt.Println("")
-	cfg, err := ini.Load("config.ini")
+	cfg, err := ini.Load("assets/config.ini")
 	if err != nil {
 		fmt.Printf("Fail to find or read config.ini file: %v", err)
 		os.Exit(1)
 	}
-	nga.BASE_URL = cfg.Section("network").Key("base_url").String()
-	nga.UA = cfg.Section("network").Key("ua").String()
+
+	//默认设置
+	nga.BASE_URL = Url
+	nga.UA = Ua
+
+	//从assets文件夹下的config.ini文件，修改ngaPassportUid，ngaPassportCid为自己的值
+	var ngaPassportUid = cfg.Section("network").Key("ngaPassportUid").String()
+	var ngaPassportCid = cfg.Section("network").Key("ngaPassportCid").String()
+	nga.COOKIE = fmt.Sprintf("ngaPassportUid="+ngaPassportUid+";"+"ngaPassportCid="+ngaPassportCid)
+
 	//默认线程数为2,仅支持1~3
 	nga.THREAD_COUNT = cfg.Section("network").Key("thread").InInt(2, []int{1, 2, 3})
 	nga.GET_IP_LOCATION = cfg.Section("post").Key("get_ip_location").MustBool()
