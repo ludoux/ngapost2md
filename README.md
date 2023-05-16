@@ -1,5 +1,7 @@
 # ngapost2md ver.[3]
 
+**👉新版锐意测试中，详参 [分支 NEO](https://github.com/ludoux/ngapost2md/tree/neo) 与 [issue NEO 版本测试](https://github.com/ludoux/ngapost2md/issues/48) 👈**
+
 快速爬楼存回复人+时间+内容，支持保存正文图片、音视频等，支持常见 bbcode 格式（具体见 README 后半部分）。
 
 **2022 年新版在每次运行前，会访问 gitee 以检查版本信息，若有新版会提示并自行退出，请下载最新版本代码（`nga.py` 与 `nga_format.py`）运行即可。若出现问题请自行移除相关检查更新代码。**
