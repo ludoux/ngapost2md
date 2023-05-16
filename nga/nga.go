@@ -20,8 +20,9 @@ import (
 
 // 这里是配置文件可以改的
 var (
-	THREAD_COUNT    = 2
-	GET_IP_LOCATION = false
+	THREAD_COUNT      = 2
+	GET_IP_LOCATION   = false
+	ENHANCE_ORI_REPLY = false //功能见 #35
 )
 
 // 这里传参可以改
@@ -31,7 +32,7 @@ var (
 
 // 这里配置文件和传参都没法改
 var (
-	VERSION  = "NEO_PRE_0.0.1_20230515"
+	VERSION  = "NEO_PRE_0.0.2_20230516"
 	DELAY_MS = 330
 	mutex    sync.Mutex
 )
@@ -233,6 +234,15 @@ func (it *Tiezi) init(tid int, crateDict bool) {
 	it.Tid = tid
 }
 
+func (it *Tiezi) findFloorByPid(pid int) *Floor {
+	for _, v := range it.Floors {
+		if v.Pid == pid {
+			return &v
+		}
+	}
+	return nil
+}
+
 func (tiezi *Tiezi) fixContent(floor_i int) {
 	/*此接口(app_api)与旧接口不太相同，有些源码格式和网页端看到的不一样！
 	 *1. 疑似匿名直接显示
@@ -364,7 +374,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 			if len(quoteAuthor) > 7 && quoteAuthor[:7] == `#anony_` {
 				quoteAuthor = anony(quoteAuthor)
 			}
-			cont = strings.ReplaceAll(cont, it[0], `>[jump](#pid0) `+quoteAuthor+`(`+quoteTime+`)`+` 说:`+quoteText+"\n\n")
+			cont = strings.ReplaceAll(cont, it[0], `>[jump](#pid0) `+quoteAuthor+`(`+quoteTime+`)`+` 说: `+quoteText+"\n\n")
 			floor.AppendPid = append(floor.AppendPid, 0)
 		}
 
@@ -395,7 +405,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 				if len(quoteAuthor) > 7 && quoteAuthor[:7] == `#anony_` {
 					quoteAuthor = anony(quoteAuthor)
 				}
-				cont = strings.ReplaceAll(cont, it[0], `>[jump](#pid`+quotePid+`) `+quoteAuthor+`(`+quoteTime+`)`+` 说:`+quoteText+"\n\n")
+				cont = strings.ReplaceAll(cont, it[0], `>[jump](#pid`+quotePid+`) `+quoteAuthor+`(`+quoteTime+`)`+` 说: `+quoteText+"\n\n")
 				//这里会有原文的，就不append了
 			}
 		}
@@ -430,7 +440,15 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 			if len(quoteAuthor) > 7 && quoteAuthor[:7] == `#anony_` {
 				quoteAuthor = anony(quoteAuthor)
 			}
-			cont = strings.ReplaceAll(cont, it[0], `>[jump](#pid`+quotePid+`) `+quoteAuthor+`(`+quoteTime+"):\n\n")
+			replyedText := ":"
+			if ENHANCE_ORI_REPLY {
+				replyedFloor := tiezi.findFloorByPid(cast.ToInt(quotePid))
+				if replyedFloor != nil {
+					replyedText = "说:\n>" + strings.ReplaceAll(replyedFloor.Content, "\n", "\n>")
+				}
+			}
+
+			cont = strings.ReplaceAll(cont, it[0], `>[jump](#pid`+quotePid+`) `+quoteAuthor+`(`+quoteTime+")"+replyedText+"\n\n")
 			floor.AppendPid = append(floor.AppendPid, cast.ToInt(quotePid))
 		}
 		floor.Content = cont

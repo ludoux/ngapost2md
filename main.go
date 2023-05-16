@@ -23,6 +23,7 @@ func main() {
 	//默认线程数为2,仅支持1~3
 	nga.THREAD_COUNT = cfg.Section("network").Key("thread").InInt(2, []int{1, 2, 3})
 	nga.GET_IP_LOCATION = cfg.Section("post").Key("get_ip_location").MustBool()
+	nga.ENHANCE_ORI_REPLY = cfg.Section("post").Key("enhance_ori_reply").MustBool()
 	nga.Client = nga.NewNgaClient()
 
 	tie := nga.Tiezi{}
