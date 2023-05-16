@@ -44,7 +44,7 @@ func NewNgaClient() *NgaClient {
 			// Corner case: neither an error response nor a success response,
 			// dump content to help troubleshoot.
 			if !resp.IsSuccess() {
-				return fmt.Errorf("bad response, raw dump:\n%s", resp.Dump())
+				return fmt.Errorf("bad response, Err:%s\nRaw dump:\n%s", resp.Err.Error(), resp.Dump())
 			}
 			return nil
 		})
