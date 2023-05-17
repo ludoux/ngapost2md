@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/ludoux/ngapost2md/nga"
 	"github.com/spf13/cast"
@@ -18,6 +19,14 @@ func main() {
 		fmt.Printf("Fail to find or read config.ini file: %v", err)
 		os.Exit(1)
 	}
+
+	//Cookie
+	var ngaPassportUid  = cfg.Section("network").Key("ngaPassportUid").String()
+	var ngaPassportCid  = cfg.Section("network").Key("ngaPassportCid").String()
+	var cookie strings.Builder
+	cookie.WriteString("ngaPassportUid="+ngaPassportUid+";"+"ngaPassportCid="+ngaPassportCid)
+	nga.COOKIE = cookie.String()
+
 	nga.BASE_URL = cfg.Section("network").Key("base_url").String()
 	nga.UA = cfg.Section("network").Key("ua").String()
 	//默认线程数为2,仅支持1~3
