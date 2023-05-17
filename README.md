@@ -8,14 +8,13 @@
 
 ## 使用指引
 
-1. 确保 `config.ini` 与 `cookies.json` 文件存在且与可执行文件在同一目录下（平级关系）
-2. 修改 `config.ini` 与 `cookies.json` 内的 `MODIFY_ME` 内容为相关内容
+1. 确保 `config.ini`  文件存在且与可执行文件在同一目录下（平级关系）
+2. 修改 `config.ini`  内的 `MODIFY_ME` 内容为相关内容
 3. 带参数（参数为帖子 tid）运行可执行文件，如 (Linux) `./app 5935947` 或者 (Windows) `.\app.exe 5935947`
 
 ### 图片快速指引
 
-![修改config.ini](README.assets/edit_config_ini.png)
-![修改cookies.json](README.assets/edit_cookies_json.png)
+<img src="README.assets/edit_config_ini.png" width="700px" alt="修改config.ini">
 
 ## 资瓷与不资瓷格式说明
 
