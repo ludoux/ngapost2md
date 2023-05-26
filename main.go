@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/imroc/req/v3"
 	"github.com/ludoux/ngapost2md/nga"
 	"github.com/spf13/cast"
 	"gopkg.in/ini.v1"
@@ -13,8 +14,13 @@ import (
 
 func main() {
 	fmt.Printf("ngapost2md (c) ludoux [ GitHub: https://github.com/ludoux/ngapost2md/tree/neo ]\nVersion: %s\n", nga.VERSION)
-
-	if len(os.Args) == 2 && (cast.ToString(os.Args[1]) == "help" || cast.ToString(os.Args[1]) == "-help" || cast.ToString(os.Args[1]) == "--help") || cast.ToString(os.Args[1]) == "-h" {
+	if nga.DEBUG_MODE {
+		fmt.Println("***DEBUG MODE ON***")
+	}
+	if len(os.Args) != 2 && len(os.Args) != 3 {
+		log.Fatalln("传参数目错误！请使用 ngapost2md -h 命令查看 ngapost2md 的使用参数说明。")
+	}
+	if len(os.Args) == 2 && (cast.ToString(os.Args[1]) == "help" || cast.ToString(os.Args[1]) == "-help" || cast.ToString(os.Args[1]) == "--help" || cast.ToString(os.Args[1]) == "-h") {
 		fmt.Println("使用: ngapost2md tid [force_max_page]\n")
 		fmt.Println("选项与参数说明: ")
 		fmt.Println("tid: 待下载的帖子 tid 号")
@@ -22,10 +28,15 @@ func main() {
 		os.Exit(0)
 	}
 
-	if len(os.Args) != 2 && len(os.Args) != 3 {
-		log.Fatalln("传参数目错误！请使用 ngapost2md -h 命令查看 ngapost2md 的使用参数说明。")
+	//DEBUG_MODE 下不会检查更新
+	if nga.DEBUG_MODE {
+		resp, _ := req.C().R().Get("https://gitee.com/ludoux/check-update/raw/master/ngapost2md/version_neo.txt")
+		//版本更新配置文件改为 DO_NOT_CHECK ，软件则不会强制使用最新版本
+		if resp.String() != nga.VERSION && resp.String() != "DO_NOT_CHECK" {
+			log.Printf("目前版本: %s 最新版本: %s", nga.VERSION, resp.String())
+			log.Fatalln("请去 GitHub Releases 页面下载最新版本。软件即将退出……")
+		}
 	}
-
 	cfg, err := ini.Load("config.ini")
 	if err != nil {
 		log.Fatalln("无法读取 config.ini 文件，请检查文件是否存在。错误信息:", err.Error())

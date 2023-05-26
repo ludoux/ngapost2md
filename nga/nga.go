@@ -37,6 +37,15 @@ var (
 	mutex    sync.Mutex
 )
 
+// ldflags 区域。GitHub Actions 编译时会使用 ldflags 来修改如下值：
+var (
+	DEBUG_MODE = true //GitHub Actions 打包的时候会修改为False。
+	/**
+	 * DEBUG_MODE 为true时会:
+	 * 启动时禁用自动版本检查
+	 */
+)
+
 type Floor struct {
 	Lou        int
 	Pid        int
@@ -62,8 +71,8 @@ type Tiezi struct {
 	FloorCount    int    //包含主楼
 	Floors        Floors //主楼为[0]
 	HotPosts      Floors
-	Timestamp     int64 //page() fixFloorContent()  中会更新
-	Version       string
+	Timestamp     int64  //page() fixFloorContent()  中会更新
+	Version       string //这个是软件的version
 	Assets        map[string]string
 }
 
