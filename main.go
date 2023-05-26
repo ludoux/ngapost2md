@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -11,20 +12,30 @@ import (
 )
 
 func main() {
-	fmt.Println("ngapost2md (c) ludoux [ GitHub: https://github.com/ludoux/ngapost2md/tree/neo ]")
-	fmt.Println("Version: " + nga.VERSION)
-	fmt.Println("")
+	fmt.Printf("ngapost2md (c) ludoux [ GitHub: https://github.com/ludoux/ngapost2md/tree/neo ]\nVersion: %s\n", nga.VERSION)
+
+	if len(os.Args) == 2 && (cast.ToString(os.Args[1]) == "help" || cast.ToString(os.Args[1]) == "-help" || cast.ToString(os.Args[1]) == "--help") || cast.ToString(os.Args[1]) == "-h" {
+		fmt.Println("使用: ngapost2md tid [force_max_page]\n")
+		fmt.Println("选项与参数说明: ")
+		fmt.Println("tid: 待下载的帖子 tid 号")
+		fmt.Println("force_max_page: 强制下载的最大页数，需要注意此页数需要小于帖子的实际页数。调试用。")
+		os.Exit(0)
+	}
+
+	if len(os.Args) != 2 && len(os.Args) != 3 {
+		log.Fatalln("传参数目错误！请使用 ngapost2md -h 命令查看 ngapost2md 的使用参数说明。")
+	}
+
 	cfg, err := ini.Load("config.ini")
 	if err != nil {
-		fmt.Printf("Fail to find or read config.ini file: %v", err)
-		os.Exit(1)
+		log.Fatalln("无法读取 config.ini 文件，请检查文件是否存在。错误信息:", err.Error())
 	}
 
 	//Cookie
-	var ngaPassportUid  = cfg.Section("network").Key("ngaPassportUid").String()
-	var ngaPassportCid  = cfg.Section("network").Key("ngaPassportCid").String()
+	var ngaPassportUid = cfg.Section("network").Key("ngaPassportUid").String()
+	var ngaPassportCid = cfg.Section("network").Key("ngaPassportCid").String()
 	var cookie strings.Builder
-	cookie.WriteString("ngaPassportUid="+ngaPassportUid+";"+"ngaPassportCid="+ngaPassportCid)
+	cookie.WriteString("ngaPassportUid=" + ngaPassportUid + ";" + "ngaPassportCid=" + ngaPassportCid)
 	nga.COOKIE = cookie.String()
 
 	nga.BASE_URL = cfg.Section("network").Key("base_url").String()
@@ -37,21 +48,22 @@ func main() {
 
 	tie := nga.Tiezi{}
 
-	if len(os.Args) != 2 && len(os.Args) != 3 {
-		fmt.Println("传参数目错误")
-		os.Exit(1)
-	}
-
 	force_max_page := -1
 	if len(os.Args) == 3 {
-		force_max_page = cast.ToInt(os.Args[2])
+		force_max_page, err = cast.ToIntE(os.Args[2])
+		if err != nil {
+			log.Fatalln("force_max_page 无法转为数字:", err.Error())
+		}
 	}
-
-	if _, err := os.Stat(cast.ToString(os.Args[1])); os.IsNotExist(err) {
-		tie.InitFromWeb(cast.ToInt(os.Args[1]), force_max_page)
+	tid, err := cast.ToIntE(os.Args[1])
+	if err != nil {
+		log.Fatalln("tid 无法转为数字:", err.Error())
+	}
+	if _, err := os.Stat(cast.ToString(tid)); os.IsNotExist(err) {
+		tie.InitFromWeb(tid, force_max_page)
 	} else {
-		fmt.Println("存在 tid 文件夹")
-		tie.InitFromLocal(cast.ToInt(os.Args[1]), force_max_page)
+		log.Println("本地存在此 tid 文件夹，追加最新更改。")
+		tie.InitFromLocal(tid, force_max_page)
 	}
 
 	tie.Download()

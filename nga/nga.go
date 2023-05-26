@@ -32,7 +32,7 @@ var (
 
 // 这里配置文件和传参都没法改
 var (
-	VERSION  = "NEO_PRE_0.0.2_20230516"
+	VERSION  = "NEO_1.0.1_20230526"
 	DELAY_MS = 330
 	mutex    sync.Mutex
 )
@@ -69,18 +69,17 @@ type Tiezi struct {
 
 var responseChannel = make(chan string, 15)
 
-func (it *Floors) ana(resp []byte) {
-
+func (tiezi *Floors) ana(resp []byte) {
 	jsonparser.ArrayEach(resp, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 		value_int, _ := jsonparser.GetInt(value, "lou")
 		lou := cast.ToInt(value_int)
 
 		//根据楼数补充Floors
-		for len(*it) < lou+1 {
-			(*it) = append((*it), Floor{Lou: -1})
+		for len(*tiezi) < lou+1 {
+			(*tiezi) = append((*tiezi), Floor{Lou: -1})
 		}
 
-		curFloor := &(*it)[lou]
+		curFloor := &(*tiezi)[lou]
 
 		//楼层
 		curFloor.Lou = lou
@@ -118,10 +117,10 @@ func (it *Floors) ana(resp []byte) {
 	})
 }
 
-func (it *Tiezi) page(page int) {
+func (tiezi *Tiezi) page(page int) {
 	resp, err := Client.R().SetFormData(map[string]string{
 		"page": cast.ToString(page),
-		"tid":  cast.ToString(it.Tid),
+		"tid":  cast.ToString(tiezi.Tid),
 	}).Post("app_api.php?__lib=post&__act=list")
 	if err != nil {
 		log.Println(err.Error())
@@ -130,112 +129,110 @@ func (it *Tiezi) page(page int) {
 	if code != 0 {
 		log.Panic("返回code不为0")
 	} else {
-		it.Timestamp = ts()
+		tiezi.Timestamp = ts()
 
 		//标题
 		value_str, _ := jsonparser.GetString(resp.Bytes(), "tsubject")
-		it.Title = value_str
+		tiezi.Title = value_str
 
 		//分区名
 		value_str, _ = jsonparser.GetString(resp.Bytes(), "forum_name")
-		it.Catelogy = value_str
+		tiezi.Catelogy = value_str
 
 		//作者
 		value_str, _ = jsonparser.GetString(resp.Bytes(), "tauthor")
-		it.Username = value_str
+		tiezi.Username = value_str
 
 		//作者id
 		value_int, _ := jsonparser.GetInt(resp.Bytes(), "tauthorid")
-		it.UserId = cast.ToInt(value_int)
+		tiezi.UserId = cast.ToInt(value_int)
 
 		//总页数
 		value_int, _ = jsonparser.GetInt(resp.Bytes(), "totalPage")
-		it.WebMaxPage = cast.ToInt(value_int)
+		tiezi.WebMaxPage = cast.ToInt(value_int)
 		if OVERRIDE_WEB_MAX_PAGE > 0 {
 			//启用了强制仅下载到此页，修改WebMaxPage
-			it.WebMaxPage = OVERRIDE_WEB_MAX_PAGE
+			tiezi.WebMaxPage = OVERRIDE_WEB_MAX_PAGE
 		}
 
 		//楼层数，楼主也算一层
 		value_int, _ = jsonparser.GetInt(resp.Bytes(), "vrows")
-		it.FloorCount = cast.ToInt(value_int - 1)
+		tiezi.FloorCount = cast.ToInt(value_int - 1)
 		if OVERRIDE_WEB_MAX_PAGE > 0 {
 			//启用了强制仅下载到此页，修改此，以不生成过多的Floors
 			//目前每页其实才20楼，这里写22楼保守一点
-			it.FloorCount = OVERRIDE_WEB_MAX_PAGE * 22
+			tiezi.FloorCount = OVERRIDE_WEB_MAX_PAGE * 22
 		}
 
 		//初始化floors个数
-		if it.Floors == nil || len(it.Floors) == 0 {
-			it.Floors = make([]Floor, it.FloorCount)
-			for i := range it.Floors {
-				it.Floors[i].Lou = -1
+		if tiezi.Floors == nil || len(tiezi.Floors) == 0 {
+			tiezi.Floors = make([]Floor, tiezi.FloorCount)
+			for i := range tiezi.Floors {
+				tiezi.Floors[i].Lou = -1
 			}
 		}
 		value_byte, dataType, _, _ := jsonparser.Get(resp.Bytes(), "hot_post")
 		if dataType != jsonparser.NotExist {
-			it.HotPosts.ana(value_byte)
+			tiezi.HotPosts.ana(value_byte)
 		}
 		value_byte, _, _, _ = jsonparser.Get(resp.Bytes(), "result")
-		it.Floors.ana(value_byte)
+		tiezi.Floors.ana(value_byte)
 	}
 }
 
 // 初始化主楼和第一页
-func (it *Tiezi) InitFromWeb(tid int, force_max_page int) {
+func (tiezi *Tiezi) InitFromWeb(tid int, force_max_page int) {
 	OVERRIDE_WEB_MAX_PAGE = force_max_page
 
-	it.init(tid, true)
-	it.Version = VERSION
-	it.Assets = map[string]string{}
-	it.LocalMaxPage = 1
-	it.LocalMaxFloor = -1
-	fmt.Printf("Start page %d\n", it.LocalMaxPage)
-	it.page(it.LocalMaxPage)
+	tiezi.init(tid, true)
+	tiezi.Version = VERSION
+	tiezi.Assets = map[string]string{}
+	tiezi.LocalMaxPage = 1
+	tiezi.LocalMaxFloor = -1
+	log.Printf("处理第 %02d 页\n", tiezi.LocalMaxPage)
+	tiezi.page(tiezi.LocalMaxPage)
 }
 
 // 本地已经有生成过，现在来根据local信息来追加下载新楼层。
-func (it *Tiezi) InitFromLocal(tid int, force_max_page int) {
+func (tiezi *Tiezi) InitFromLocal(tid int, force_max_page int) {
 	OVERRIDE_WEB_MAX_PAGE = force_max_page
 
-	it.init(tid, false)
-	it.Version = VERSION
+	tiezi.init(tid, false)
+	tiezi.Version = VERSION
 
-	processFileName := `./` + cast.ToString(it.Tid) + `/process.ini`
+	processFileName := `./` + cast.ToString(tiezi.Tid) + `/process.ini`
 	//倘若丢失process文件，报错并退出
 	if _, err := os.Stat(processFileName); os.IsNotExist(err) {
-		fmt.Println("process.ini 文件丢失，软件将退出。")
-		os.Exit(1)
+		log.Fatalln("process.ini 文件丢失，软件将退出。")
 	}
 
-	assetsFileName := `./` + cast.ToString(it.Tid) + `/assets.json`
+	assetsFileName := `./` + cast.ToString(tiezi.Tid) + `/assets.json`
 	//倘若丢失assets文件，报错并退出
 	if _, err := os.Stat(assetsFileName); os.IsNotExist(err) {
-		fmt.Println("assets.json 文件丢失，软件将退出。")
-		os.Exit(1)
+		log.Fatalln("assets.json 文件丢失，软件将退出。")
 	}
 
 	jsonBytes, _ := os.ReadFile(assetsFileName)
-	json.Unmarshal(jsonBytes, &(it.Assets))
+	json.Unmarshal(jsonBytes, &(tiezi.Assets))
 
 	cfg, _ := ini.Load(processFileName)
-	it.LocalMaxPage = cfg.Section("local").Key("max_page").MustInt(1)
-	it.LocalMaxFloor = cfg.Section("local").Key("max_floor").MustInt(-1)
-	fmt.Printf("Start page %d\n", it.LocalMaxPage)
-	it.page(it.LocalMaxPage)
+	tiezi.LocalMaxPage = cfg.Section("local").Key("max_page").MustInt(1)
+	tiezi.LocalMaxFloor = cfg.Section("local").Key("max_floor").MustInt(-1)
+	log.Printf("处理第 %02d 页\n", tiezi.LocalMaxPage)
+	tiezi.page(tiezi.LocalMaxPage)
 
 }
 
-func (it *Tiezi) init(tid int, crateDict bool) {
+func (tiezi *Tiezi) init(tid int, crateDict bool) {
 	if crateDict {
 		os.MkdirAll(`./`+cast.ToString(tid), os.ModePerm)
 	}
 
-	it.Tid = tid
+	tiezi.Tid = tid
 }
 
-func (it *Tiezi) findFloorByPid(pid int) *Floor {
-	for _, v := range it.Floors {
+func (tiezi *Tiezi) findFloorByPid(pid int) *Floor {
+	for _, v := range tiezi.Floors {
 		if v.Pid == pid {
 			return &v
 		}
@@ -326,9 +323,9 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 			if !ok {
 				mutex.Unlock()
 				time.Sleep(time.Millisecond * time.Duration(DELAY_MS))
-				fmt.Printf("down pic: %v\n", fileName)
+				log.Println("开始下载图片:", fileName)
 				downloadAssets(url, `./`+cast.ToString(tid)+`/`+fileName)
-				fmt.Printf("down pic: %v------ok\n", fileName)
+				log.Println("下载图片成功:", fileName)
 			} else {
 				mutex.Unlock()
 			}
@@ -465,13 +462,13 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 
 }
 
-func (it *Tiezi) fixFloorContent(startFloor_i int) {
+func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
 
 	var wg sync.WaitGroup
 	p, _ := ants.NewPoolWithFunc(THREAD_COUNT, func(floor_i interface{}) {
-		if it.Floors[cast.ToInt(floor_i)].Lou != -1 {
-			responseChannel <- fmt.Sprintf("Start fix floor %d", cast.ToInt(floor_i))
-			it.fixContent(cast.ToInt(floor_i))
+		if tiezi.Floors[cast.ToInt(floor_i)].Lou != -1 {
+			responseChannel <- fmt.Sprintf("开始修正第 %02d 楼层", cast.ToInt(floor_i))
+			tiezi.fixContent(cast.ToInt(floor_i))
 		}
 		wg.Done()
 	})
@@ -479,14 +476,14 @@ func (it *Tiezi) fixFloorContent(startFloor_i int) {
 	//go responseController()
 
 	startTime := time.Now()
-	for i := startFloor_i; i < len(it.Floors); i++ {
+	for i := startFloor_i; i < len(tiezi.Floors); i++ {
 		wg.Add(1)
 		_ = p.Invoke(i)
-		it.Timestamp = ts()
+		tiezi.Timestamp = ts()
 	}
 	wg.Wait()
 	elapsedTime := time.Since(startTime) / time.Millisecond
-	fmt.Printf("fix floor总耗时 in %dms\n", elapsedTime)
+	log.Printf("修正楼层总耗时: %dms\n", elapsedTime)
 
 }
 
@@ -498,7 +495,7 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0666)
 	defer f.Close()
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Fatalln("创建或打开 .md 文件失败！", err.Error())
 	}
 	for i := localMaxFloor; i < len(tiezi.Floors); i++ {
 		floor := &tiezi.Floors[i]
@@ -537,73 +534,76 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 		// for _, v := range it.AppendPid {
 		// 	_, _ = f.WriteString("\n*---AppendPid: " + cast.ToString(v) + "---*\n")
 		// }
-		_, ex := f.WriteString("\n\n")
-		if ex != nil {
-			fmt.Println(ex.Error())
-		}
+		_, _ = f.WriteString("\n\n")
 	}
 }
 
 func responseController() {
 	for rc := range responseChannel {
-		fmt.Println("response: ", rc)
+		log.Println(rc)
 	}
 }
 
-// 默认清空内容
-func (it *Tiezi) SaveAsFile() {
-	//为节省大小和导入导出压力，清空具体回复内容
-	copy := it
-	for i := range copy.Floors {
-		copy.Floors[i].Content = ""
-		for ii := range copy.Floors[i].Comments {
-			copy.Floors[i].Comments[ii].Content = ""
-		}
-	}
-	result, err := json.Marshal(copy)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fileName := `./` + cast.ToString(copy.Tid) + `/tiezi.json`
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		_, _ = os.Create(fileName)
-	}
-	f, _ := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0666)
-	_, _ = f.Write(result)
-	defer f.Close()
-}
+// // 默认清空内容
+// func (tiezi *Tiezi) SaveAsFile() {
+// 	//为节省大小和导入导出压力，清空具体回复内容
+// 	copy := tiezi
+// 	for i := range copy.Floors {
+// 		copy.Floors[i].Content = ""
+// 		for ii := range copy.Floors[i].Comments {
+// 			copy.Floors[i].Comments[ii].Content = ""
+// 		}
+// 	}
+// 	result, err := json.Marshal(copy)
+// 	if err != nil {
+// 		fmt.Println(err)
+// 	}
+// 	fileName := `./` + cast.ToString(copy.Tid) + `/tiezi.json`
+// 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+// 		_, _ = os.Create(fileName)
+// 	}
+// 	f, _ := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0666)
+// 	_, _ = f.Write(result)
+// 	defer f.Close()
+// }
 
-func (it *Tiezi) SaveProcessInfo() {
-	fileName := `./` + cast.ToString(it.Tid) + `/process.ini`
+func (tiezi *Tiezi) SaveProcessInfo() {
+	fileName := `./` + cast.ToString(tiezi.Tid) + `/process.ini`
 	cfg := ini.Empty()
 	cfg.NewSection("local")
-	cfg.Section("local").NewKey("max_floor", cast.ToString(it.LocalMaxFloor))
-	cfg.Section("local").NewKey("max_page", cast.ToString(it.LocalMaxPage))
+	cfg.Section("local").NewKey("max_floor", cast.ToString(tiezi.LocalMaxFloor))
+	cfg.Section("local").NewKey("max_page", cast.ToString(tiezi.LocalMaxPage))
 	cfg.SaveTo(fileName)
 }
 
-func (it *Tiezi) SaveAssetsMap() {
-	fileName := `./` + cast.ToString(it.Tid) + `/assets.json`
-	result, err := json.Marshal(it.Assets)
+func (tiezi *Tiezi) SaveAssetsMap() {
+	fileName := `./` + cast.ToString(tiezi.Tid) + `/assets.json`
+	result, err := json.Marshal(tiezi.Assets)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalln("将附件转化为 Json 格式失败:", err.Error())
 	}
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		_, _ = os.Create(fileName)
+		_, err = os.Create(fileName)
+		if err != nil {
+			log.Fatalln("创建 assets.json 文件失败:", err.Error())
+		}
 	}
 	f, _ := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0666)
-	_, _ = f.Write(result)
+	_, err = f.Write(result)
+	if err != nil {
+		log.Fatalln("保存 assets.json 文件失败:", err.Error())
+	}
 	defer f.Close()
 }
 
-func (it *Tiezi) Download() {
-	if it.Tid != 0 {
+func (tiezi *Tiezi) Download() {
+	if tiezi.Tid != 0 {
 		var wg sync.WaitGroup
 		p, _ := ants.NewPoolWithFunc(THREAD_COUNT, func(page interface{}) {
 			time.Sleep(time.Millisecond * time.Duration(DELAY_MS))
-			responseChannel <- fmt.Sprintf("Start page %d", page)
+			responseChannel <- fmt.Sprintf("处理第 %02d 页", page)
 			//1. 并行下载page
-			it.page(cast.ToInt(page))
+			tiezi.page(cast.ToInt(page))
 			wg.Done()
 		})
 		defer p.Release()
@@ -611,38 +611,38 @@ func (it *Tiezi) Download() {
 
 		startTime := time.Now()
 		//因为 it.LocalMaxPage 在InitFromxxx的时候已经page过了
-		for page := it.LocalMaxPage + 1; page <= it.WebMaxPage; page++ {
+		for page := tiezi.LocalMaxPage + 1; page <= tiezi.WebMaxPage; page++ {
 			wg.Add(1)
 			_ = p.Invoke(page)
 		}
 		wg.Wait()
 
 		elapsedTime := time.Since(startTime) / time.Millisecond
-		fmt.Printf("下载page总耗时 in %dms\n", elapsedTime)
+		log.Printf("下载所以页面总耗时: %dms\n", elapsedTime)
 
 		//2. 格式化content
-		it.fixFloorContent(it.LocalMaxFloor + 1)
+		tiezi.fixFloorContent(tiezi.LocalMaxFloor + 1)
 
 		//3. 制作文件
-		it.genMarkdown(it.LocalMaxFloor + 1)
+		tiezi.genMarkdown(tiezi.LocalMaxFloor + 1)
 
-		it.LocalMaxPage = it.WebMaxPage
+		tiezi.LocalMaxPage = tiezi.WebMaxPage
 
 		//因为NGA会抽楼，floorcount不准，只能这样子
-		for i := len(it.Floors) - 1; ; i-- {
-			floor := &it.Floors[i]
+		for i := len(tiezi.Floors) - 1; ; i-- {
+			floor := &tiezi.Floors[i]
 			if floor.Lou > -1 {
-				it.LocalMaxFloor = floor.Lou
+				tiezi.LocalMaxFloor = floor.Lou
 				break
 			}
 		}
 		// 存储tiezi---暂时注释掉，还是使用存储localmaxpage和maxfloor(SaveProcessInfo)的方法。
-		//it.SaveAsFile()
+		//tiezi.SaveAsFile()
 
 		//存储localmaxpage和maxfloor
-		it.SaveProcessInfo()
+		tiezi.SaveProcessInfo()
 
 		//存储assets map
-		it.SaveAssetsMap()
+		tiezi.SaveAssetsMap()
 	}
 }
