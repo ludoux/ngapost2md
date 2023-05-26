@@ -68,3 +68,4 @@ jobs:
         extra_files: LICENSE README.md assets/* #将这些文件一并打包
         ldflags: -X github.com/ludoux/ngapost2md/nga.DEBUG_MODE=0
         overwrite: TRUE #若已有附件则覆写
+        asset_name: ngapost2md-NEO_${{ steps.tag.outputs.tag }}-${{ matrix.goos }}-${{ matrix.goarch }}
