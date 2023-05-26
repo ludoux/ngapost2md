@@ -69,17 +69,22 @@ type Tiezi struct {
 
 var responseChannel = make(chan string, 15)
 
-func (tiezi *Floors) ana(resp []byte) {
+/**
+ * @description: 分析floors原始数据并填充进floors里
+ * @param {[]byte} resp 接口下来的原始数据
+ * @return {*}
+ */
+func (it *Floors) analyze(resp []byte) {
 	jsonparser.ArrayEach(resp, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
 		value_int, _ := jsonparser.GetInt(value, "lou")
 		lou := cast.ToInt(value_int)
 
 		//根据楼数补充Floors
-		for len(*tiezi) < lou+1 {
-			(*tiezi) = append((*tiezi), Floor{Lou: -1})
+		for len(*it) < lou+1 {
+			(*it) = append((*it), Floor{Lou: -1})
 		}
 
-		curFloor := &(*tiezi)[lou]
+		curFloor := &(*it)[lou]
 
 		//楼层
 		curFloor.Lou = lou
@@ -111,12 +116,17 @@ func (tiezi *Floors) ana(resp []byte) {
 		//下挂comments
 		value_byte, dataType, _, _ := jsonparser.Get(value, "comments")
 		if dataType != jsonparser.NotExist {
-			curFloor.Comments.ana(value_byte)
+			curFloor.Comments.analyze(value_byte)
 		}
 
 	})
 }
 
+/**
+ * @description: 针对 tiezi 对象获取指定页的信息
+ * @param {int} page 指定的页数
+ * @return {*}
+ */
 func (tiezi *Tiezi) page(page int) {
 	resp, err := Client.R().SetFormData(map[string]string{
 		"page": cast.ToString(page),
@@ -127,7 +137,7 @@ func (tiezi *Tiezi) page(page int) {
 	}
 	code, _ := jsonparser.GetInt(resp.Bytes(), "code")
 	if code != 0 {
-		log.Panic("返回code不为0")
+		log.Fatalln("nga 返回代码不为0:", code)
 	} else {
 		tiezi.Timestamp = ts()
 
@@ -173,14 +183,19 @@ func (tiezi *Tiezi) page(page int) {
 		}
 		value_byte, dataType, _, _ := jsonparser.Get(resp.Bytes(), "hot_post")
 		if dataType != jsonparser.NotExist {
-			tiezi.HotPosts.ana(value_byte)
+			tiezi.HotPosts.analyze(value_byte)
 		}
 		value_byte, _, _, _ = jsonparser.Get(resp.Bytes(), "result")
-		tiezi.Floors.ana(value_byte)
+		tiezi.Floors.analyze(value_byte)
 	}
 }
 
-// 初始化主楼和第一页
+/**
+ * @description: 本地未生成过。初始化主楼和第一页
+ * @param {int} tid 帖子tid
+ * @param {int} force_max_page
+ * @return {*}
+ */
 func (tiezi *Tiezi) InitFromWeb(tid int, force_max_page int) {
 	OVERRIDE_WEB_MAX_PAGE = force_max_page
 
@@ -193,7 +208,12 @@ func (tiezi *Tiezi) InitFromWeb(tid int, force_max_page int) {
 	tiezi.page(tiezi.LocalMaxPage)
 }
 
-// 本地已经有生成过，现在来根据local信息来追加下载新楼层。
+/**
+ * @description: 本地已经有生成过，现在来根据local信息来追加下载新楼层。
+ * @param {int} tid 帖子tid
+ * @param {int} force_max_page 指定下载到的最大页数。需要比实际帖子页数小。-1以忽略
+ * @return {*}
+ */
 func (tiezi *Tiezi) InitFromLocal(tid int, force_max_page int) {
 	OVERRIDE_WEB_MAX_PAGE = force_max_page
 
@@ -223,6 +243,12 @@ func (tiezi *Tiezi) InitFromLocal(tid int, force_max_page int) {
 
 }
 
+/**
+ * @description: 初始化 Tiezi。主要是创建文件夹
+ * @param {int} tid 帖子tid
+ * @param {bool} crateDict 是否创建文件夹
+ * @return {*}
+ */
 func (tiezi *Tiezi) init(tid int, crateDict bool) {
 	if crateDict {
 		os.MkdirAll(`./`+cast.ToString(tid), os.ModePerm)
@@ -231,6 +257,11 @@ func (tiezi *Tiezi) init(tid int, crateDict bool) {
 	tiezi.Tid = tid
 }
 
+/**
+ * @description: 由传入 Tiezi 对象里根据 pid 查找一 Floor 对象。若没有查到则返回空
+ * @param {int} pid 楼层 pid
+ * @return {*}
+ */
 func (tiezi *Tiezi) findFloorByPid(pid int) *Floor {
 	for _, v := range tiezi.Floors {
 		if v.Pid == pid {
@@ -240,6 +271,11 @@ func (tiezi *Tiezi) findFloorByPid(pid int) *Floor {
 	return nil
 }
 
+/**
+ * @description: 由bbcode转md，以及下载图片、转化表情等
+ * @param {int} floor_i floor下标
+ * @return {*}
+ */
 func (tiezi *Tiezi) fixContent(floor_i int) {
 	/*此接口(app_api)与旧接口不太相同，有些源码格式和网页端看到的不一样！
 	 *1. 疑似匿名直接显示
@@ -462,6 +498,11 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 
 }
 
+/**
+ * @description: 对fixContent的包裹。主要是为了并行……
+ * @param {int} startFloor_i 从哪一下标开始修。主要是针对追加楼层更新时
+ * @return {*}
+ */
 func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
 
 	var wg sync.WaitGroup
@@ -473,7 +514,6 @@ func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
 		wg.Done()
 	})
 	defer p.Release()
-	//go responseController()
 
 	startTime := time.Now()
 	for i := startFloor_i; i < len(tiezi.Floors); i++ {
@@ -487,6 +527,11 @@ func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
 
 }
 
+/**
+ * @description: 写markdown文件
+ * @param {int} localMaxFloor 本地已有的楼
+ * @return {*}
+ */
 func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 	fileName := `./` + cast.ToString(tiezi.Tid) + `/post.md`
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
