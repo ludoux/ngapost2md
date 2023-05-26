@@ -1,6 +1,8 @@
-# ngapost2md ver.[3]
+# 本分支（即 python 版本）不再维护，请切换至 如下 Go 语言版本
 
-**👉新版锐意测试中，详参 [分支 NEO](https://github.com/ludoux/ngapost2md/tree/neo) 与 [issue NEO 版本测试](https://github.com/ludoux/ngapost2md/issues/48) 👈**
+**👉详参 [分支 NEO](https://github.com/ludoux/ngapost2md/tree/neo)👈**
+
+# ngapost2md ver.[3]
 
 快速爬楼存回复人+时间+内容，支持保存正文图片、音视频等，支持常见 bbcode 格式（具体见 README 后半部分）。
 
