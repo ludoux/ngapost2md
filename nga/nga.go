@@ -32,14 +32,14 @@ var (
 
 // 这里配置文件和传参都没法改
 var (
-	VERSION  = "NEO_1.0.1_20230526"
+	VERSION  = "NEO_1.0.1"
 	DELAY_MS = 330
 	mutex    sync.Mutex
 )
 
 // ldflags 区域。GitHub Actions 编译时会使用 ldflags 来修改如下值：
 var (
-	DEBUG_MODE = true //GitHub Actions 打包的时候会修改为False。
+	DEBUG_MODE = "1" //GitHub Actions 打包的时候会修改为"0"。本地打包可以 go build -ldflags "-X 'github.com/ludoux/ngapost2md/nga.DEBUG_MODE=0'" main.go
 	/**
 	 * DEBUG_MODE 为true时会:
 	 * 启动时禁用自动版本检查

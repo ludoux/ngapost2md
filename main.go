@@ -14,7 +14,7 @@ import (
 
 func main() {
 	fmt.Printf("ngapost2md (c) ludoux [ GitHub: https://github.com/ludoux/ngapost2md/tree/neo ]\nVersion: %s\n", nga.VERSION)
-	if nga.DEBUG_MODE {
+	if nga.DEBUG_MODE == "1" {
 		fmt.Println("***DEBUG MODE ON***")
 	}
 	if len(os.Args) != 2 && len(os.Args) != 3 {
@@ -28,8 +28,8 @@ func main() {
 		os.Exit(0)
 	}
 
-	//DEBUG_MODE 下不会检查更新
-	if nga.DEBUG_MODE {
+	//DEBUG_MODE不为1时（不是DEBUG_MODE）时检测更新
+	if nga.DEBUG_MODE != "1" {
 		resp, _ := req.C().R().Get("https://gitee.com/ludoux/check-update/raw/master/ngapost2md/version_neo.txt")
 		//版本更新配置文件改为 DO_NOT_CHECK ，软件则不会强制使用最新版本
 		if resp.String() != nga.VERSION && resp.String() != "DO_NOT_CHECK" {
