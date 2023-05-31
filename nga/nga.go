@@ -154,7 +154,7 @@ func (tiezi *Tiezi) page(page int) {
 
 		//标题
 		value_str, _ := jsonparser.GetString(resp.Bytes(), "tsubject")
-		if len(tiezi.Oldtitle) > 0{
+		if len(tiezi.Oldtitle) > 0 {
 			tiezi.Title = tiezi.Oldtitle
 		} else {
 			tiezi.Title = value_str
@@ -565,7 +565,7 @@ func ToSaveFilename(in string) string {
 	return rt
 }
 
-func (tiezi *Tiezi) genMarkdown(localMaxFloor int,name string) {
+func (tiezi *Tiezi) genMarkdown(localMaxFloor int, name string) {
 	fileName := `./` + cast.ToString(tiezi.Tid) + `/` + name + `.md`
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		_, _ = os.Create(fileName)
@@ -649,7 +649,7 @@ func (tiezi *Tiezi) SaveProcessInfo() {
 	fileName := `./` + cast.ToString(tiezi.Tid) + `/process.ini`
 	cfg := ini.Empty()
 	cfg.NewSection("local")
-	cfg.Section("local").NewKey("title", cast.ToString(ToSaveFilename(tiezi.Title)) )
+	cfg.Section("local").NewKey("title", cast.ToString(ToSaveFilename(tiezi.Title)))
 	cfg.Section("local").NewKey("max_floor", cast.ToString(tiezi.LocalMaxFloor))
 	cfg.Section("local").NewKey("max_page", cast.ToString(tiezi.LocalMaxPage))
 	cfg.SaveTo(fileName)
@@ -704,12 +704,11 @@ func (tiezi *Tiezi) Download() {
 
 		//3. 制作文件
 		if ENABLE_POST_TITLE {
-			var name string =  ToSaveFilename(tiezi.Title)
-			tiezi.genMarkdown(tiezi.LocalMaxFloor + 1, name)
+			var name string = ToSaveFilename(tiezi.Title)
+			tiezi.genMarkdown(tiezi.LocalMaxFloor+1, name)
 		} else {
-			tiezi.genMarkdown(tiezi.LocalMaxFloor + 1,"post")
+			tiezi.genMarkdown(tiezi.LocalMaxFloor+1, "post")
 		}
-
 
 		tiezi.LocalMaxPage = tiezi.WebMaxPage
 
