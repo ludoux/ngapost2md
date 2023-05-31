@@ -543,7 +543,7 @@ func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
  * @return {*}
  */
 func (tiezi *Tiezi) genMarkdown(localMaxFloor int,name string) {
-	fileName := `./` + cast.ToString(tiezi.Tid) +`/` +name+`.md`
+	fileName := `./` + cast.ToString(tiezi.Tid) + `/` + name + `.md`
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		_, _ = os.Create(fileName)
 	}
