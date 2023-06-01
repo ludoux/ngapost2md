@@ -23,6 +23,7 @@ var (
 	THREAD_COUNT      = 2
 	GET_IP_LOCATION   = false
 	ENHANCE_ORI_REPLY = false //功能见 #35
+	ENABLE_POST_TITLE = false //添加功能#21
 )
 
 // 这里传参可以改
@@ -74,6 +75,7 @@ type Tiezi struct {
 	Timestamp     int64  //page() fixFloorContent()  中会更新
 	Version       string //这个是软件的version
 	Assets        map[string]string
+	Oldtitle      string
 }
 
 var responseChannel = make(chan string, 15)
@@ -152,7 +154,11 @@ func (tiezi *Tiezi) page(page int) {
 
 		//标题
 		value_str, _ := jsonparser.GetString(resp.Bytes(), "tsubject")
-		tiezi.Title = value_str
+		if len(tiezi.Oldtitle) > 0 {
+			tiezi.Title = tiezi.Oldtitle
+		} else {
+			tiezi.Title = value_str
+		}
 
 		//分区名
 		value_str, _ = jsonparser.GetString(resp.Bytes(), "forum_name")
@@ -247,6 +253,7 @@ func (tiezi *Tiezi) InitFromLocal(tid int, force_max_page int) {
 	cfg, _ := ini.Load(processFileName)
 	tiezi.LocalMaxPage = cfg.Section("local").Key("max_page").MustInt(1)
 	tiezi.LocalMaxFloor = cfg.Section("local").Key("max_floor").MustInt(-1)
+	tiezi.Oldtitle = cfg.Section("local").Key("title").String()
 	log.Printf("处理第 %02d 页\n", tiezi.LocalMaxPage)
 	tiezi.page(tiezi.LocalMaxPage)
 
@@ -541,8 +548,25 @@ func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
  * @param {int} localMaxFloor 本地已有的楼
  * @return {*}
  */
-func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
-	fileName := `./` + cast.ToString(tiezi.Tid) + `/post.md`
+func ToSaveFilename(in string) string {
+	//https://stackoverflow.com/questions/1976007/what-characters-are-forbidden-in-windows-and-linux-directory-names
+	rp := strings.NewReplacer(
+		"/", " ",
+		"\\", " ",
+		"<", " ",
+		">", " ",
+		":", " ",
+		"\"", " ",
+		"|", " ",
+		"?", " ",
+		"*", " ",
+	)
+	rt := rp.Replace(in)
+	return rt
+}
+
+func (tiezi *Tiezi) genMarkdown(localMaxFloor int, name string) {
+	fileName := `./` + cast.ToString(tiezi.Tid) + `/` + name + `.md`
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		_, _ = os.Create(fileName)
 	}
@@ -625,6 +649,7 @@ func (tiezi *Tiezi) SaveProcessInfo() {
 	fileName := `./` + cast.ToString(tiezi.Tid) + `/process.ini`
 	cfg := ini.Empty()
 	cfg.NewSection("local")
+	cfg.Section("local").NewKey("title", cast.ToString(ToSaveFilename(tiezi.Title)))
 	cfg.Section("local").NewKey("max_floor", cast.ToString(tiezi.LocalMaxFloor))
 	cfg.Section("local").NewKey("max_page", cast.ToString(tiezi.LocalMaxPage))
 	cfg.SaveTo(fileName)
@@ -678,7 +703,12 @@ func (tiezi *Tiezi) Download() {
 		tiezi.fixFloorContent(tiezi.LocalMaxFloor + 1)
 
 		//3. 制作文件
-		tiezi.genMarkdown(tiezi.LocalMaxFloor + 1)
+		if ENABLE_POST_TITLE {
+			var name string = ToSaveFilename(tiezi.Title)
+			tiezi.genMarkdown(tiezi.LocalMaxFloor+1, name)
+		} else {
+			tiezi.genMarkdown(tiezi.LocalMaxFloor+1, "post")
+		}
 
 		tiezi.LocalMaxPage = tiezi.WebMaxPage
 

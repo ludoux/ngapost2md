@@ -21,7 +21,7 @@ func main() {
 		log.Fatalln("传参数目错误！请使用 ngapost2md -h 命令查看 ngapost2md 的使用参数说明。")
 	}
 	if len(os.Args) == 2 && (cast.ToString(os.Args[1]) == "help" || cast.ToString(os.Args[1]) == "-help" || cast.ToString(os.Args[1]) == "--help" || cast.ToString(os.Args[1]) == "-h") {
-		fmt.Println("使用: ngapost2md tid [force_max_page]\n")
+		fmt.Println("使用: ngapost2md tid [force_max_page]")
 		fmt.Println("选项与参数说明: ")
 		fmt.Println("tid: 待下载的帖子 tid 号")
 		fmt.Println("force_max_page: 强制下载的最大页数，需要注意此页数需要小于帖子的实际页数。调试用。")
@@ -55,6 +55,7 @@ func main() {
 	nga.THREAD_COUNT = cfg.Section("network").Key("thread").InInt(2, []int{1, 2, 3})
 	nga.GET_IP_LOCATION = cfg.Section("post").Key("get_ip_location").MustBool()
 	nga.ENHANCE_ORI_REPLY = cfg.Section("post").Key("enhance_ori_reply").MustBool()
+	nga.ENABLE_POST_TITLE = cfg.Section("post").Key("enable_post_title").MustBool()
 	nga.Client = nga.NewNgaClient()
 
 	tie := nga.Tiezi{}
