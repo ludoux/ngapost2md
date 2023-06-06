@@ -76,6 +76,7 @@ type Tiezi struct {
 	Version       string //这个是软件的version
 	Assets        map[string]string
 	Oldtitle      string
+	FileName      string
 }
 
 var responseChannel = make(chan string, 15)
@@ -564,13 +565,16 @@ func ToSaveFilename(in string) string {
 	rt := rp.Replace(in)
 	return rt
 }
-
 func (tiezi *Tiezi) genMarkdown(localMaxFloor int, name string) {
-	fileName := `./` + cast.ToString(tiezi.Tid) + `/` + name + `.md`
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		_, _ = os.Create(fileName)
+	if len(tiezi.Oldtitle) > 0 {
+		tiezi.FileName = "./" + cast.ToString(tiezi.Tid) + "/" + tiezi.Oldtitle + ".md"
+	} else {
+		tiezi.FileName = `./` + cast.ToString(tiezi.Tid) + `/` + name + `.md`
 	}
-	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0666)
+	if _, err := os.Stat(tiezi.FileName); os.IsNotExist(err) {
+		_, _ = os.Create(tiezi.FileName)
+	}
+	f, err := os.OpenFile(tiezi.FileName, os.O_APPEND|os.O_WRONLY, 0666)
 	defer f.Close()
 	if err != nil {
 		log.Fatalln("创建或打开 .md 文件失败！", err.Error())
@@ -649,7 +653,13 @@ func (tiezi *Tiezi) SaveProcessInfo() {
 	fileName := `./` + cast.ToString(tiezi.Tid) + `/process.ini`
 	cfg := ini.Empty()
 	cfg.NewSection("local")
-	cfg.Section("local").NewKey("title", cast.ToString(ToSaveFilename(tiezi.Title)))
+
+	if ENABLE_POST_TITLE {
+		cfg.Section("local").NewKey("title", cast.ToString(ToSaveFilename(tiezi.Title)))
+	} else {
+		cfg.Section("local").NewKey("title", "post")
+	}
+
 	cfg.Section("local").NewKey("max_floor", cast.ToString(tiezi.LocalMaxFloor))
 	cfg.Section("local").NewKey("max_page", cast.ToString(tiezi.LocalMaxPage))
 	cfg.SaveTo(fileName)
