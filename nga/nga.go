@@ -20,22 +20,26 @@ import (
 
 // 这里是配置文件可以改的
 var (
-	THREAD_COUNT      = 2
-	GET_IP_LOCATION   = false
-	ENHANCE_ORI_REPLY = false //功能见 #35
-	ENABLE_POST_TITLE = false //添加功能#21
+	THREAD_COUNT        = 2
+	GET_IP_LOCATION     = false
+	ENHANCE_ORI_REPLY   = false //功能见 #35
+	ENABLE_POST_TITLE   = false //添加功能#21
+	PAGE_DOWNLOAD_LIMIT = 100   //#56
 )
 
 // 这里传参可以改
-var (
-	OVERRIDE_WEB_MAX_PAGE = -1 //当>0后则强制仅下载到此页
-)
+var ()
 
 // 这里配置文件和传参都没法改
 var (
-	VERSION  = "NEO_1.1.0"
+	VERSION  = "NEO_1.2.0"
 	DELAY_MS = 330
 	mutex    sync.Mutex
+)
+
+// Flag 相关
+var (
+	page_download_limit_triggered = false
 )
 
 // ldflags 区域。GitHub Actions 编译时会使用 ldflags 来修改如下值：
@@ -176,6 +180,10 @@ func (tiezi *Tiezi) page(page int) {
 		//总页数
 		value_int, _ = jsonparser.GetInt(resp.Bytes(), "totalPage")
 		tiezi.WebMaxPage = cast.ToInt(value_int)
+		if PAGE_DOWNLOAD_LIMIT > 0 && tiezi.WebMaxPage > (tiezi.LocalMaxPage+PAGE_DOWNLOAD_LIMIT) {
+			tiezi.WebMaxPage = tiezi.LocalMaxPage + PAGE_DOWNLOAD_LIMIT
+			page_download_limit_triggered = true
+		}
 
 		//楼层数，楼主也算一层
 		value_int, _ = jsonparser.GetInt(resp.Bytes(), "vrows")
@@ -200,7 +208,6 @@ func (tiezi *Tiezi) page(page int) {
 /**
  * @description: 本地未生成过。初始化主楼和第一页
  * @param {int} tid 帖子tid
- * @param {int} force_max_page
  * @return {*}
  */
 func (tiezi *Tiezi) InitFromWeb(tid int) {
@@ -209,14 +216,13 @@ func (tiezi *Tiezi) InitFromWeb(tid int) {
 	tiezi.Assets = map[string]string{}
 	tiezi.LocalMaxPage = 1
 	tiezi.LocalMaxFloor = -1
-	log.Printf("处理第 %02d 页\n", tiezi.LocalMaxPage)
+	log.Printf("下载第 %02d 页\n", tiezi.LocalMaxPage)
 	tiezi.page(tiezi.LocalMaxPage)
 }
 
 /**
  * @description: 本地已经有生成过，现在来根据local信息来追加下载新楼层。
  * @param {int} tid 帖子tid
- * @param {int} force_max_page 指定下载到的最大页数。需要比实际帖子页数小。-1以忽略
  * @return {*}
  */
 func (tiezi *Tiezi) InitFromLocal(tid int) {
@@ -244,7 +250,7 @@ func (tiezi *Tiezi) InitFromLocal(tid int) {
 	tiezi.LocalMaxPage = cfg.Section("local").Key("max_page").MustInt(1)
 	tiezi.LocalMaxFloor = cfg.Section("local").Key("max_floor").MustInt(-1)
 	tiezi.Oldtitle = cfg.Section("local").Key("title").String()
-	log.Printf("处理第 %02d 页\n", tiezi.LocalMaxPage)
+	log.Printf("下载第 %02d 页\n", tiezi.LocalMaxPage)
 	tiezi.page(tiezi.LocalMaxPage)
 
 }
@@ -365,9 +371,9 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 			if !ok {
 				mutex.Unlock()
 				time.Sleep(time.Millisecond * time.Duration(DELAY_MS))
-				log.Println("开始下载图片:", fileName)
+				log.Println("下载图片:", fileName)
 				downloadAssets(url, `./`+cast.ToString(tid)+`/`+fileName)
-				log.Println("下载图片成功:", fileName)
+				//log.Println("下载图片成功:", fileName)
 			} else {
 				mutex.Unlock()
 			}
@@ -673,7 +679,7 @@ func (tiezi *Tiezi) Download() {
 		var wg sync.WaitGroup
 		p, _ := ants.NewPoolWithFunc(THREAD_COUNT, func(page interface{}) {
 			time.Sleep(time.Millisecond * time.Duration(DELAY_MS))
-			responseChannel <- fmt.Sprintf("处理第 %02d 页", page)
+			responseChannel <- fmt.Sprintf("下载第 %02d 页", page)
 			//1. 并行下载page
 			tiezi.page(cast.ToInt(page))
 			wg.Done()
@@ -691,6 +697,9 @@ func (tiezi *Tiezi) Download() {
 
 		elapsedTime := time.Since(startTime) / time.Millisecond
 		log.Printf("下载所有页面总耗时: %dms\n", elapsedTime)
+		if page_download_limit_triggered {
+			log.Println("单次下载 Page 数已达上限！本次导出完毕后需要多次重新运行才可全部导出此帖内容。")
+		}
 
 		//2. 格式化content
 		tiezi.fixFloorContent(tiezi.LocalMaxFloor + 1)
@@ -721,5 +730,9 @@ func (tiezi *Tiezi) Download() {
 
 		//存储assets map
 		tiezi.SaveAssetsMap()
+		if page_download_limit_triggered {
+			log.Println("单次下载 Page 数已达上限！本次导出完毕后需要多次重新运行才可全部导出此帖内容。")
+		}
+		log.Println("本次任务结束。")
 	}
 }

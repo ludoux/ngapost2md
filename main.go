@@ -12,6 +12,11 @@ import (
 	"gopkg.in/ini.v1"
 )
 
+var (
+	//修改了 config.ini 文件后，需要同步修改此处和 assets/config.ini 文件里的 version
+	CONFIG_VERSION = "1.2.0"
+)
+
 func main() {
 	fmt.Printf("ngapost2md (c) ludoux [ GitHub: https://github.com/ludoux/ngapost2md/tree/neo ]\nVersion: %s\n", nga.VERSION)
 	if nga.DEBUG_MODE == "1" {
@@ -40,6 +45,9 @@ func main() {
 	if err != nil {
 		log.Fatalln("无法读取 config.ini 文件，请检查文件是否存在。错误信息:", err.Error())
 	}
+	if cfg.Section("config").Key("version").String() != CONFIG_VERSION {
+		log.Fatalf("config.ini 版本号(%s)与本软件所需版本(%s)不符！\n软件升级后，请使用最新的 config.ini 配置文件，并修改其内的 UA、uid、cid 和其它个性化设置\n", cfg.Section("config").Key("version").String(), CONFIG_VERSION)
+	}
 
 	//Cookie
 	var ngaPassportUid = cfg.Section("network").Key("ngaPassportUid").String()
@@ -52,6 +60,7 @@ func main() {
 	nga.UA = cfg.Section("network").Key("ua").String()
 	//默认线程数为2,仅支持1~3
 	nga.THREAD_COUNT = cfg.Section("network").Key("thread").InInt(2, []int{1, 2, 3})
+	nga.PAGE_DOWNLOAD_LIMIT = cfg.Section("network").Key("page_download_limit").RangeInt(100, -1, 100)
 	nga.GET_IP_LOCATION = cfg.Section("post").Key("get_ip_location").MustBool()
 	nga.ENHANCE_ORI_REPLY = cfg.Section("post").Key("enhance_ori_reply").MustBool()
 	nga.ENABLE_POST_TITLE = cfg.Section("post").Key("enable_post_title").MustBool()
