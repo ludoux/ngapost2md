@@ -236,8 +236,10 @@ func (tiezi *Tiezi) InitFromLocal(tid int) {
 	}
 
 	jsonBytes, _ := os.ReadFile(assetsFileName)
-	json.Unmarshal(jsonBytes, &(tiezi.Assets))
-
+	err := json.Unmarshal(jsonBytes, &(tiezi.Assets))
+	if err != nil {
+		log.Fatalln("解析 assets.json 失败:", err.Error())
+	}
 	cfg, _ := ini.Load(processFileName)
 	tiezi.LocalMaxPage = cfg.Section("local").Key("max_page").MustInt(1)
 	tiezi.LocalMaxFloor = cfg.Section("local").Key("max_floor").MustInt(-1)
@@ -658,13 +660,7 @@ func (tiezi *Tiezi) SaveAssetsMap() {
 	if err != nil {
 		log.Fatalln("将附件转化为 Json 格式失败:", err.Error())
 	}
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		_, err = os.Create(fileName)
-		if err != nil {
-			log.Fatalln("创建 assets.json 文件失败:", err.Error())
-		}
-	}
-	f, _ := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0666)
+	f, _ := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0666)
 	_, err = f.Write(result)
 	if err != nil {
 		log.Fatalln("保存 assets.json 文件失败:", err.Error())
