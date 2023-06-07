@@ -29,7 +29,7 @@ func NewNgaClient() *NgaClient {
 			return nil
 		}).
 		OnAfterResponse(func(client *req.Client, resp *req.Response) error {
-			if !resp.IsSuccess() {
+			if !resp.IsSuccessState() {
 				return fmt.Errorf("网络请求失败！错误信息: %s\nRaw dump:\n%s", resp.Err.Error(), resp.Dump())
 			}
 			return nil

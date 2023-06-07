@@ -87,7 +87,7 @@ var responseChannel = make(chan string, 15)
  * @return {*}
  */
 func (it *Floors) analyze(resp []byte) {
-	jsonparser.ArrayEach(resp, func(value []byte, dataType jsonparser.ValueType, offset int, err error) {
+	jsonparser.ArrayEach(resp, func(value []byte, _ jsonparser.ValueType, _ int, _ error) {
 		value_int, _ := jsonparser.GetInt(value, "lou")
 		lou := cast.ToInt(value_int)
 
