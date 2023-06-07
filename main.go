@@ -17,14 +17,13 @@ func main() {
 	if nga.DEBUG_MODE == "1" {
 		fmt.Println("***DEBUG MODE ON***")
 	}
-	if len(os.Args) != 2 && len(os.Args) != 3 {
+	if len(os.Args) != 2 {
 		log.Fatalln("传参数目错误！请使用 ngapost2md -h 命令查看 ngapost2md 的使用参数说明。")
 	}
 	if len(os.Args) == 2 && (cast.ToString(os.Args[1]) == "help" || cast.ToString(os.Args[1]) == "-help" || cast.ToString(os.Args[1]) == "--help" || cast.ToString(os.Args[1]) == "-h") {
-		fmt.Println("使用: ngapost2md tid [force_max_page]")
+		fmt.Println("使用: ngapost2md tid")
 		fmt.Println("选项与参数说明: ")
 		fmt.Println("tid: 待下载的帖子 tid 号")
-		fmt.Println("force_max_page: 强制下载的最大页数，需要注意此页数需要小于帖子的实际页数。调试用。")
 		os.Exit(0)
 	}
 
@@ -60,22 +59,15 @@ func main() {
 
 	tie := nga.Tiezi{}
 
-	force_max_page := -1
-	if len(os.Args) == 3 {
-		force_max_page, err = cast.ToIntE(os.Args[2])
-		if err != nil {
-			log.Fatalln("force_max_page 无法转为数字:", err.Error())
-		}
-	}
 	tid, err := cast.ToIntE(os.Args[1])
 	if err != nil {
 		log.Fatalln("tid 无法转为数字:", err.Error())
 	}
 	if _, err := os.Stat(cast.ToString(tid)); os.IsNotExist(err) {
-		tie.InitFromWeb(tid, force_max_page)
+		tie.InitFromWeb(tid)
 	} else {
 		log.Println("本地存在此 tid 文件夹，追加最新更改。")
-		tie.InitFromLocal(tid, force_max_page)
+		tie.InitFromLocal(tid)
 	}
 
 	tie.Download()

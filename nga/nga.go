@@ -176,19 +176,10 @@ func (tiezi *Tiezi) page(page int) {
 		//总页数
 		value_int, _ = jsonparser.GetInt(resp.Bytes(), "totalPage")
 		tiezi.WebMaxPage = cast.ToInt(value_int)
-		if OVERRIDE_WEB_MAX_PAGE > 0 {
-			//启用了强制仅下载到此页，修改WebMaxPage
-			tiezi.WebMaxPage = OVERRIDE_WEB_MAX_PAGE
-		}
 
 		//楼层数，楼主也算一层
 		value_int, _ = jsonparser.GetInt(resp.Bytes(), "vrows")
 		tiezi.FloorCount = cast.ToInt(value_int - 1)
-		if OVERRIDE_WEB_MAX_PAGE > 0 {
-			//启用了强制仅下载到此页，修改此，以不生成过多的Floors
-			//目前每页其实才20楼，这里写22楼保守一点
-			tiezi.FloorCount = OVERRIDE_WEB_MAX_PAGE * 22
-		}
 
 		//初始化floors个数
 		if tiezi.Floors == nil || len(tiezi.Floors) == 0 {
@@ -212,9 +203,7 @@ func (tiezi *Tiezi) page(page int) {
  * @param {int} force_max_page
  * @return {*}
  */
-func (tiezi *Tiezi) InitFromWeb(tid int, force_max_page int) {
-	OVERRIDE_WEB_MAX_PAGE = force_max_page
-
+func (tiezi *Tiezi) InitFromWeb(tid int) {
 	tiezi.init(tid, true)
 	tiezi.Version = VERSION
 	tiezi.Assets = map[string]string{}
@@ -230,9 +219,7 @@ func (tiezi *Tiezi) InitFromWeb(tid int, force_max_page int) {
  * @param {int} force_max_page 指定下载到的最大页数。需要比实际帖子页数小。-1以忽略
  * @return {*}
  */
-func (tiezi *Tiezi) InitFromLocal(tid int, force_max_page int) {
-	OVERRIDE_WEB_MAX_PAGE = force_max_page
-
+func (tiezi *Tiezi) InitFromLocal(tid int) {
 	tiezi.init(tid, false)
 	tiezi.Version = VERSION
 
