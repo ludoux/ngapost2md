@@ -694,7 +694,7 @@ func (tiezi *Tiezi) Download() {
 		wg.Wait()
 
 		elapsedTime := time.Since(startTime) / time.Millisecond
-		log.Printf("下载所以页面总耗时: %dms\n", elapsedTime)
+		log.Printf("下载所有页面总耗时: %dms\n", elapsedTime)
 
 		//2. 格式化content
 		tiezi.fixFloorContent(tiezi.LocalMaxFloor + 1)
