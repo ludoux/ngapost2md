@@ -4,6 +4,8 @@
 
 **此为 2023 年由 Go 语言重写的版本。倘若需要旧版 Python 版代码（不再维护），请切换分支至 LEGACY**
 
+<img src="README.assets/gen_md_demo.png" width="900px" alt="gen_md_demo">
+
 ## 使用指引
 
 1. 确保 `config.ini`  文件存在且与可执行文件在同一目录下（平级关系）
@@ -12,7 +14,7 @@
 
 ### 图片快速指引
 
-<img src="README.assets/edit_config_ini.png" width="700px" alt="修改config.ini">
+<img src="README.assets/edit_config_ini.png" width="900px" alt="修改config.ini">
 
 ## 注意事项
 
