@@ -544,22 +544,6 @@ func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
  * @param {int} localMaxFloor 本地已有的楼
  * @return {*}
  */
-func ToSaveFilename(in string) string {
-	//https://stackoverflow.com/questions/1976007/what-characters-are-forbidden-in-windows-and-linux-directory-names
-	rp := strings.NewReplacer(
-		"/", " ",
-		"\\", " ",
-		"<", " ",
-		">", " ",
-		":", " ",
-		"\"", " ",
-		"|", " ",
-		"?", " ",
-		"*", " ",
-	)
-	rt := rp.Replace(in)
-	return rt
-}
 func (tiezi *Tiezi) genMarkdown(localMaxFloor int, name string) {
 	if len(tiezi.Oldtitle) > 0 {
 		tiezi.FileName = "./" + cast.ToString(tiezi.Tid) + "/" + tiezi.Oldtitle + ".md"

@@ -1,11 +1,11 @@
 package nga
 
 import (
-	"strconv"
-	"time"
-
 	"github.com/buger/jsonparser"
 	"github.com/imroc/req/v3"
+	"strconv"
+	"strings"
+	"time"
 )
 
 func getSmile(key string) string {
@@ -52,4 +52,21 @@ func downloadAssets(url string, fileName string) {
 
 	// Download to the absolute file path.
 	client.R().SetOutputFile(fileName).Get(url)
+}
+
+func ToSaveFilename(in string) string {
+	//https://stackoverflow.com/questions/1976007/what-characters-are-forbidden-in-windows-and-linux-directory-names
+	rp := strings.NewReplacer(
+		"/", " ",
+		"\\", " ",
+		"<", " ",
+		">", " ",
+		":", " ",
+		"\"", " ",
+		"|", " ",
+		"?", " ",
+		"*", " ",
+	)
+	rt := rp.Replace(in)
+	return rt
 }
