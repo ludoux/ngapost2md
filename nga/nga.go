@@ -21,14 +21,14 @@ import (
 // 这里是配置文件可以改的
 var (
 	THREAD_COUNT        = 2
-	GET_IP_LOCATION     = false
-	ENHANCE_ORI_REPLY   = false //功能见 #35
-	ENABLE_POST_TITLE   = false //添加功能#21
-	PAGE_DOWNLOAD_LIMIT = 100   //#56
+	GET_IP_LOCATION     = false //	获取ip地址
+	ENHANCE_ORI_REPLY   = false //	功能见 #35
+	ENABLE_POST_TITLE   = false //	以帖子标题命名文件 #21
+	PAGE_DOWNLOAD_LIMIT = 100   //	限制单次下载的页数 #56
 )
 
 // 这里传参可以改
-var ()
+// var ()
 
 // 这里配置文件和传参都没法改
 var (
@@ -545,11 +545,14 @@ func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
  * @return {*}
  */
 func (tiezi *Tiezi) genMarkdown(localMaxFloor int, name string) {
+
+	// 判断是否存在旧文件名，存在就使用
 	if len(tiezi.Oldtitle) > 0 {
 		tiezi.FileName = "./" + cast.ToString(tiezi.Tid) + "/" + tiezi.Oldtitle + ".md"
 	} else {
 		tiezi.FileName = `./` + cast.ToString(tiezi.Tid) + `/` + name + `.md`
 	}
+
 	if _, err := os.Stat(tiezi.FileName); os.IsNotExist(err) {
 		_, _ = os.Create(tiezi.FileName)
 	}
