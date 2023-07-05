@@ -601,9 +601,9 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int, name string) {
 		if floor.IpLocation != "" {
 			IpLocation_str = "\\(" + floor.IpLocation + "\\)"
 		}
-		_, _ = f.WriteString(fmt.Sprintf("----\n##### <span id=\"pid%d\">%d.[%d] \\<pid:%d\\> %s by %s%s</span>\n%s", floor.Pid, floor.Lou, floor.LikeNum, floor.Pid, ts2t(floor.Timestamp), floor.Username, IpLocation_str, floor.Content))
+		_, _ = f.WriteString(fmt.Sprintf("----\n\n##### <span id=\"pid%d\">%d.[%d] \\<pid:%d\\> %s by %s%s</span>\n%s", floor.Pid, floor.Lou, floor.LikeNum, floor.Pid, ts2t(floor.Timestamp), floor.Username, IpLocation_str, floor.Content))
 		if floor.Comments != nil {
-			_, _ = f.WriteString("\n*---下挂评论---*")
+			_, _ = f.WriteString("\n\n*---下挂评论---*")
 			for _, itt := range floor.Comments {
 				_, _ = f.WriteString(fmt.Sprintf("\n\n%d.[%d] \\<pid:%d\\>%s by %s:\n%s", itt.Lou, itt.LikeNum, itt.Pid, ts2t(itt.Timestamp), itt.Username, itt.Content))
 			}
