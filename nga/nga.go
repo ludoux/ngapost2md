@@ -32,7 +32,7 @@ var ()
 
 // 这里配置文件和传参都没法改
 var (
-	VERSION  = "NEO_1.2.0"
+	VERSION  = "NEO_1.2.1"
 	DELAY_MS = 330
 	mutex    sync.Mutex
 )
