@@ -394,7 +394,16 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 		//表情
 		re = regexp.MustCompile(`\[s\:.+?\:.+?\]`)
 		for _, it := range re.FindAllString(cont, -1) {
-			cont = strings.ReplaceAll(cont, it, `![`+strings.Split(it, `:`)[2]+`(https://img4.nga.178.com/ngabbs/post/smile/`+strings.ReplaceAll(getSmile(it), `"`, ``)+`)`)
+			//cont = strings.ReplaceAll(cont, it, `![`+strings.Split(it, `:`)[2]+`(https://img4.nga.178.com/ngabbs/post/smile/`+strings.ReplaceAll(getSmile(it), `"`, ``)+`)`)
+			smile_name := strings.Split(it, `:`)[1] + strings.TrimRight(strings.Split(it, `:`)[2], "]")
+			if strings.Contains(smile_name, "web") {
+				smile_name = smile_name + ".gif"
+			} else {
+				smile_name = smile_name + ".png"
+			}
+			prefix := "../smile-resized/"
+			final := prefix + smile_name
+			cont = strings.ReplaceAll(cont, it, `![`+strings.Split(it, `:`)[2]+`(`+final+`)`)
 		}
 
 		//删除线
