@@ -88,14 +88,20 @@ var responseChannel = make(chan string, 15)
 /**
  * @description: 分析floors原始数据并填充进floors里
  * @param {[]byte} resp 接口下来的原始数据
+ * @param {bool} isComments 是否是下挂评论。假如是的话则自增楼层
  * @return {*}
  */
-func (it *Floors) analyze(resp []byte) {
+func (it *Floors) analyze(resp []byte, isComments bool) {
+	lou_comment := 1
 	jsonparser.ArrayEach(resp, func(value []byte, _ jsonparser.ValueType, _ int, _ error) {
 		value_int, _ := jsonparser.GetInt(value, "lou")
-		lou := cast.ToInt(value_int)
-
-		//根据楼数补充Floors
+		var lou int
+		if !isComments {
+			lou = cast.ToInt(value_int)
+		} else {
+			lou = lou_comment
+		}
+		// 根据楼数补充Floors
 		for len(*it) < lou+1 {
 			(*it) = append((*it), Floor{Lou: -1})
 		}
@@ -132,9 +138,9 @@ func (it *Floors) analyze(resp []byte) {
 		//下挂comments
 		value_byte, dataType, _, _ := jsonparser.Get(value, "comments")
 		if dataType != jsonparser.NotExist {
-			curFloor.Comments.analyze(value_byte)
+			curFloor.Comments.analyze(value_byte, true)
 		}
-
+		lou_comment = lou_comment + 1
 	})
 }
 
@@ -198,10 +204,10 @@ func (tiezi *Tiezi) page(page int) {
 		}
 		value_byte, dataType, _, _ := jsonparser.Get(resp.Bytes(), "hot_post")
 		if dataType != jsonparser.NotExist {
-			tiezi.HotPosts.analyze(value_byte)
+			tiezi.HotPosts.analyze(value_byte, false)
 		}
 		value_byte, _, _, _ = jsonparser.Get(resp.Bytes(), "result")
-		tiezi.Floors.analyze(value_byte)
+		tiezi.Floors.analyze(value_byte, false)
 	}
 }
 
@@ -589,6 +595,10 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int, name string) {
 		if floor.Comments != nil {
 			_, _ = f.WriteString("\n\n*---下挂评论---*")
 			for _, itt := range floor.Comments {
+				if itt.Lou <= 0 {
+					//为了评论从1楼开始，评论[0]恒为为空
+					continue
+				}
 				_, _ = f.WriteString(fmt.Sprintf("\n\n%d.[%d] \\<pid:%d\\>%s by %s:\n%s", itt.Lou, itt.LikeNum, itt.Pid, ts2t(itt.Timestamp), itt.Username, itt.Content))
 			}
 		}
