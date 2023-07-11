@@ -235,17 +235,17 @@ func (tiezi *Tiezi) InitFromLocal(tid int) {
 	tiezi.init(tid, false)
 	tiezi.Version = VERSION
 
-	processFileName := `./` + cast.ToString(tiezi.Tid) + `/process.ini`
-	//倘若丢失process文件，报错并退出
-	if _, err := os.Stat(processFileName); os.IsNotExist(err) {
-		log.Fatalln("process.ini 文件丢失，软件将退出。")
+	checkFileExistence := func(fileName string) {
+		if _, err := os.Stat(fileName); os.IsNotExist(err) {
+			log.Fatalf("%s 文件丢失，软件将退出。\n", fileName)
+		}
 	}
 
+	processFileName := `./` + cast.ToString(tiezi.Tid) + `/process.ini`
+	checkFileExistence(processFileName)
+
 	assetsFileName := `./` + cast.ToString(tiezi.Tid) + `/assets.json`
-	//倘若丢失assets文件，报错并退出
-	if _, err := os.Stat(assetsFileName); os.IsNotExist(err) {
-		log.Fatalln("assets.json 文件丢失，软件将退出。")
-	}
+	checkFileExistence(assetsFileName)
 
 	jsonBytes, _ := os.ReadFile(assetsFileName)
 	err := json.Unmarshal(jsonBytes, &(tiezi.Assets))
@@ -327,17 +327,21 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 		}
 		//获取IP位置结束
 
-		cont := floor.Content
-		cont = strings.ReplaceAll(cont, `\u0026`, "&")
-		cont = strings.ReplaceAll(cont, `\u003c`, "<")
-		cont = strings.ReplaceAll(cont, `\u003e`, ">")
-		cont = strings.ReplaceAll(cont, `&amp;#160;`, " ")
+		replacements := map[string]string{
+			`\u0026`:      "&",
+			`\u003c`:      "<",
+			`\u003e`:      ">",
+			`&amp;#160;`:  " ",
+			`<br/>`:       "\n",
+			`<br>`:        "\n",
+			`&lt;br/&gt;`: "\n",
+			`&lt;br&gt;`:  "\n",
+		}
 
-		//换行
-		cont = strings.ReplaceAll(cont, `<br/>`, "\n")
-		cont = strings.ReplaceAll(cont, `<br>`, "\n")
-		cont = strings.ReplaceAll(cont, `&lt;br/&gt;`, "\n")
-		cont = strings.ReplaceAll(cont, `&lt;br&gt;`, "\n")
+		cont := floor.Content
+		for old, new := range replacements {
+			cont = strings.ReplaceAll(cont, old, new)
+		}
 
 		//匿名
 		if len(floor.Username) > 7 && floor.Username[:7] == `#anony_` {
@@ -351,8 +355,8 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 
 		//图片
 		re = regexp.MustCompile(`\[img\](.+?)\[/img\]`)
-		for _, it := range re.FindAllStringSubmatch(cont, -1) {
-			url := it[1]
+		for _, match := range re.FindAllStringSubmatch(cont, -1) {
+			url := match[1]
 			if url[0:2] == "./" {
 				url = "https://img.nga.178.com/attachments/" + url[2:]
 			}
@@ -363,19 +367,11 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 			var fileName string
 
 			mutex.Lock()
-			var ok bool
-			v, ok := (*assets)[shorted]
-			if ok {
-				//存在，直接复用
-				fileName = v
-			} else {
+			if fileName, ok := (*assets)[shorted]; !ok {
 				fileName = cast.ToString(floor.Lou) + "_" + shorted
 				(*assets)[shorted] = fileName
-
-			}
-
-			if !ok {
 				mutex.Unlock()
+
 				time.Sleep(time.Millisecond * time.Duration(DELAY_MS))
 				log.Println("下载图片:", fileName)
 				downloadAssets(url, `./`+cast.ToString(tid)+`/`+fileName)
@@ -383,7 +379,8 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 			} else {
 				mutex.Unlock()
 			}
-			cont = strings.ReplaceAll(cont, `[img]`+it[1]+`[/img]`, `![img](./`+fileName+`)`)
+
+			cont = strings.ReplaceAll(cont, `[img]`+match[1]+`[/img]`, `![img](./`+fileName+`)`)
 		}
 
 		//表情
