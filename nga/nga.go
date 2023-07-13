@@ -355,8 +355,8 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 
 		//图片
 		re = regexp.MustCompile(`\[img\](.+?)\[/img\]`)
-		for _, match := range re.FindAllStringSubmatch(cont, -1) {
-			url := match[1]
+		for _, it := range re.FindAllStringSubmatch(cont, -1) {
+			url := it[1]
 			if url[0:2] == "./" {
 				url = "https://img.nga.178.com/attachments/" + url[2:]
 			}
@@ -367,11 +367,19 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 			var fileName string
 
 			mutex.Lock()
-			if fileName, ok := (*assets)[shorted]; !ok {
+			var ok bool
+			v, ok := (*assets)[shorted]
+			if ok {
+				//存在，直接复用
+				fileName = v
+			} else {
 				fileName = cast.ToString(floor.Lou) + "_" + shorted
 				(*assets)[shorted] = fileName
-				mutex.Unlock()
 
+			}
+
+			if !ok {
+				mutex.Unlock()
 				time.Sleep(time.Millisecond * time.Duration(DELAY_MS))
 				log.Println("下载图片:", fileName)
 				downloadAssets(url, `./`+cast.ToString(tid)+`/`+fileName)
@@ -379,8 +387,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 			} else {
 				mutex.Unlock()
 			}
-
-			cont = strings.ReplaceAll(cont, `[img]`+match[1]+`[/img]`, `![img](./`+fileName+`)`)
+			cont = strings.ReplaceAll(cont, `[img]`+it[1]+`[/img]`, `![img](./`+fileName+`)`)
 		}
 
 		//表情
