@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -21,14 +22,14 @@ import (
 // 这里是配置文件可以改的
 var (
 	THREAD_COUNT        = 2
-	GET_IP_LOCATION     = false
-	ENHANCE_ORI_REPLY   = false //功能见 #35
-	ENABLE_POST_TITLE   = false //添加功能#21
-	PAGE_DOWNLOAD_LIMIT = 100   //#56
+	GET_IP_LOCATION     = false //	获取ip地址
+	ENHANCE_ORI_REPLY   = false //	功能见 #35
+	ENABLE_POST_TITLE   = false //	以帖子标题命名文件 #21
+	PAGE_DOWNLOAD_LIMIT = 100   //	限制单次下载的页数 #56
 )
 
 // 这里传参可以改
-var ()
+// var ()
 
 // 这里配置文件和传参都没法改
 var (
@@ -235,17 +236,17 @@ func (tiezi *Tiezi) InitFromLocal(tid int) {
 	tiezi.init(tid, false)
 	tiezi.Version = VERSION
 
-	processFileName := `./` + cast.ToString(tiezi.Tid) + `/process.ini`
-	//倘若丢失process文件，报错并退出
-	if _, err := os.Stat(processFileName); os.IsNotExist(err) {
-		log.Fatalln("process.ini 文件丢失，软件将退出。")
+	checkFileExistence := func(fileName string) {
+		if _, err := os.Stat(fileName); os.IsNotExist(err) {
+			log.Fatalf("%s 文件丢失，软件将退出。\n", fileName)
+		}
 	}
 
+	processFileName := `./` + cast.ToString(tiezi.Tid) + `/process.ini`
+	checkFileExistence(processFileName)
+
 	assetsFileName := `./` + cast.ToString(tiezi.Tid) + `/assets.json`
-	//倘若丢失assets文件，报错并退出
-	if _, err := os.Stat(assetsFileName); os.IsNotExist(err) {
-		log.Fatalln("assets.json 文件丢失，软件将退出。")
-	}
+	checkFileExistence(assetsFileName)
 
 	jsonBytes, _ := os.ReadFile(assetsFileName)
 	err := json.Unmarshal(jsonBytes, &(tiezi.Assets))
@@ -327,17 +328,21 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 		}
 		//获取IP位置结束
 
-		cont := floor.Content
-		cont = strings.ReplaceAll(cont, `\u0026`, "&")
-		cont = strings.ReplaceAll(cont, `\u003c`, "<")
-		cont = strings.ReplaceAll(cont, `\u003e`, ">")
-		cont = strings.ReplaceAll(cont, `&amp;#160;`, " ")
+		replacements := map[string]string{
+			`\u0026`:      "&",
+			`\u003c`:      "<",
+			`\u003e`:      ">",
+			`&amp;#160;`:  " ",
+			`<br/>`:       "\n",
+			`<br>`:        "\n",
+			`&lt;br/&gt;`: "\n",
+			`&lt;br&gt;`:  "\n",
+		}
 
-		//换行
-		cont = strings.ReplaceAll(cont, `<br/>`, "\n")
-		cont = strings.ReplaceAll(cont, `<br>`, "\n")
-		cont = strings.ReplaceAll(cont, `&lt;br/&gt;`, "\n")
-		cont = strings.ReplaceAll(cont, `&lt;br&gt;`, "\n")
+		cont := floor.Content
+		for old, new := range replacements {
+			cont = strings.ReplaceAll(cont, old, new)
+		}
 
 		//匿名
 		if len(floor.Username) > 7 && floor.Username[:7] == `#anony_` {
@@ -551,60 +556,69 @@ func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
  * @return {*}
  */
 func (tiezi *Tiezi) genMarkdown(localMaxFloor int, name string) {
-	if len(tiezi.Oldtitle) > 0 {
-		tiezi.FileName = "./" + cast.ToString(tiezi.Tid) + "/" + tiezi.Oldtitle + ".md"
-	} else {
-		tiezi.FileName = `./` + cast.ToString(tiezi.Tid) + `/` + name + `.md`
+	filePath := fmt.Sprintf("./%v/", tiezi.Tid)
+	fileName := tiezi.Oldtitle + ".md"
+	if len(tiezi.Oldtitle) == 0 {
+		fileName = name + ".md"
 	}
+	tiezi.FileName = filepath.Join(filePath, fileName)
+
 	if _, err := os.Stat(tiezi.FileName); os.IsNotExist(err) {
-		_, _ = os.Create(tiezi.FileName)
+		if _, err := os.Create(tiezi.FileName); err != nil {
+			log.Fatalf("创建或打开 .md 文件失败：%v", err)
+		}
 	}
+
 	f, err := os.OpenFile(tiezi.FileName, os.O_APPEND|os.O_WRONLY, 0666)
 	defer f.Close()
 	if err != nil {
-		log.Fatalln("创建或打开 .md 文件失败！", err.Error())
+		log.Fatalf("创建或打开 .md 文件失败：%v", err)
 	}
+
 	for i := localMaxFloor; i < len(tiezi.Floors); i++ {
 		floor := &tiezi.Floors[i]
 		if floor.Lou == -1 {
 			//被抽楼了
 			continue
 		}
+
 		if floor.Pid == 0 {
 			_, _ = f.WriteString(fmt.Sprintf("### %s\n\nMade by ngapost2md (c) ludoux [GitHub Repo](https://github.com/ludoux/ngapost2md)\n\n", tiezi.Title))
 		}
+
 		if floor.Pid == 0 && len(tiezi.HotPosts) > 0 {
 			_, _ = f.WriteString("##### 热门回复\n\n")
 			for _, v := range tiezi.HotPosts {
 				if v.Lou == -1 {
 					continue
 				}
-				if len([]rune(v.Content)) > 22 {
-					_, _ = f.WriteString(fmt.Sprintf("- [%d楼](#pid%d): %s...\n", v.Lou, v.Pid, string([]rune(v.Content)[0:20])))
-				} else {
-					_, _ = f.WriteString(fmt.Sprintf("- [%d楼](#pid%d): %s...\n", v.Lou, v.Pid, v.Content))
+				content := v.Content
+				if len([]rune(content)) > 22 {
+					content = string([]rune(content)[:20]) + "..."
 				}
+				_, _ = f.WriteString(fmt.Sprintf("- [%d楼](#pid%d): %s\n", v.Lou, v.Pid, content))
 			}
 			_, _ = f.WriteString("\n")
 		}
-		IpLocation_str := ""
+
+		IpLocationStr := ""
 		if floor.IpLocation != "" {
-			IpLocation_str = "\\(" + floor.IpLocation + "\\)"
+			IpLocationStr = "\\(" + floor.IpLocation + "\\)"
 		}
-		_, _ = f.WriteString(fmt.Sprintf("----\n\n##### <span id=\"pid%d\">%d.[%d] \\<pid:%d\\> %s by %s%s</span>\n%s", floor.Pid, floor.Lou, floor.LikeNum, floor.Pid, ts2t(floor.Timestamp), floor.Username, IpLocation_str, floor.Content))
+
+		_, _ = f.WriteString(fmt.Sprintf("----\n\n##### <span id=\"pid%d\">%d.[%d] \\<pid:%d\\> %s by %s%s</span>\n%s", floor.Pid, floor.Lou, floor.LikeNum, floor.Pid, ts2t(floor.Timestamp), floor.Username, IpLocationStr, floor.Content))
+
 		if floor.Comments != nil {
 			_, _ = f.WriteString("\n\n*---下挂评论---*")
-			for _, itt := range floor.Comments {
-				if itt.Lou <= 0 {
+			for _, comment := range floor.Comments {
+				if comment.Lou <= 0 {
 					//为了评论从1楼开始，评论[0]恒为为空
 					continue
 				}
-				_, _ = f.WriteString(fmt.Sprintf("\n\n%d.[%d] \\<pid:%d\\>%s by %s:\n%s", itt.Lou, itt.LikeNum, itt.Pid, ts2t(itt.Timestamp), itt.Username, itt.Content))
+				_, _ = f.WriteString(fmt.Sprintf("\n\n%d.[%d] \\<pid:%d\\>%s by %s:\n%s", comment.Lou, comment.LikeNum, comment.Pid, ts2t(comment.Timestamp), comment.Username, comment.Content))
 			}
 		}
-		// for _, v := range it.AppendPid {
-		// 	_, _ = f.WriteString("\n*---AppendPid: " + cast.ToString(v) + "---*\n")
-		// }
+
 		_, _ = f.WriteString("\n\n")
 	}
 }
@@ -643,12 +657,11 @@ func (tiezi *Tiezi) SaveProcessInfo() {
 	cfg := ini.Empty()
 	cfg.NewSection("local")
 
+	title := "post"
 	if ENABLE_POST_TITLE {
-		cfg.Section("local").NewKey("title", cast.ToString(ToSaveFilename(tiezi.Title)))
-	} else {
-		cfg.Section("local").NewKey("title", "post")
+		title = ToSaveFilename(tiezi.Title)
 	}
-
+	cfg.Section("local").NewKey("title", cast.ToString(title))
 	cfg.Section("local").NewKey("max_floor", cast.ToString(tiezi.LocalMaxFloor))
 	cfg.Section("local").NewKey("max_page", cast.ToString(tiezi.LocalMaxPage))
 	cfg.SaveTo(fileName)
