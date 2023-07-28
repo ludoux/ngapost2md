@@ -40,7 +40,6 @@ thread=2 ;线程数，提高理论上可以增加下载速度。仅支持 1、2�
 page_download_limit=100; 每次下载限制新下载的大约页数。到上限后需要重新运行程序再追加下载，如此直至全部下载成功。允许范围 -1（含）至 100（含）。值为 0 或 -1 时则不限制。默认值 100（约 100 页）。
 
 [post]
-enable_post_title=False ;是否将 .md 文件以标题命名。默认值 False（不启用）
 get_ip_location=False ;是否查询用户基于 IP 的地理位置？若启用则会导致至高 20 倍于未启用的网络请求。默认值 False（不启用）
 enhance_ori_reply=False ;将被回复的楼层内容补充完整。见 issue#35 。开启此功能要求同步将 thread 线程数设置为 1，否则可能会补充到未 format 的文本。默认值 False（不启用）
 ```
