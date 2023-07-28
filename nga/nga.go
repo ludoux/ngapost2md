@@ -26,6 +26,8 @@ var (
 	ENHANCE_ORI_REPLY   = false //	功能见 #35
 	ENABLE_POST_TITLE   = false //	以帖子标题命名文件 #21
 	PAGE_DOWNLOAD_LIMIT = 100   //	限制单次下载的页数 #56
+	FILENAME            = ""    //  匹配文件夹时的文件夹名字
+	FILEPATH            = ""    //  保存文件时的文件夹名字
 )
 
 // 这里传参可以改
@@ -80,8 +82,6 @@ type Tiezi struct {
 	Timestamp     int64  //page() fixFloorContent()  中会更新
 	Version       string //这个是软件的version
 	Assets        map[string]string
-	Oldtitle      string
-	FileName      string
 }
 
 var responseChannel = make(chan string, 15)
@@ -166,11 +166,7 @@ func (tiezi *Tiezi) page(page int) {
 
 		//标题
 		value_str, _ := jsonparser.GetString(resp.Bytes(), "tsubject")
-		if len(tiezi.Oldtitle) > 0 {
-			tiezi.Title = tiezi.Oldtitle
-		} else {
-			tiezi.Title = value_str
-		}
+		tiezi.Title = ToSaveFilename(value_str)
 
 		//分区名
 		value_str, _ = jsonparser.GetString(resp.Bytes(), "forum_name")
@@ -227,6 +223,15 @@ func (tiezi *Tiezi) InitFromWeb(tid int) {
 	tiezi.page(tiezi.LocalMaxPage)
 }
 
+func (tiezi *Tiezi) ChangeDirName(tid int) {
+	if len(FILENAME) > 0 {
+		fmt.Println("")
+	} else {
+		os.Rename("./"+cast.ToString(tid), "./"+cast.ToString(tid)+"-"+tiezi.Title)
+		fmt.Println("修改完成")
+	}
+}
+
 /**
  * @description: 本地已经有生成过，现在来根据local信息来追加下载新楼层。
  * @param {int} tid 帖子tid
@@ -242,10 +247,10 @@ func (tiezi *Tiezi) InitFromLocal(tid int) {
 		}
 	}
 
-	processFileName := `./` + cast.ToString(tiezi.Tid) + `/process.ini`
+	processFileName := `./` + FILENAME + `/process.ini`
 	checkFileExistence(processFileName)
 
-	assetsFileName := `./` + cast.ToString(tiezi.Tid) + `/assets.json`
+	assetsFileName := `./` + FILENAME + `/assets.json`
 	checkFileExistence(assetsFileName)
 
 	jsonBytes, _ := os.ReadFile(assetsFileName)
@@ -256,7 +261,6 @@ func (tiezi *Tiezi) InitFromLocal(tid int) {
 	cfg, _ := ini.Load(processFileName)
 	tiezi.LocalMaxPage = cfg.Section("local").Key("max_page").MustInt(1)
 	tiezi.LocalMaxFloor = cfg.Section("local").Key("max_floor").MustInt(-1)
-	tiezi.Oldtitle = cfg.Section("local").Key("title").String()
 	log.Printf("下载第 %02d 页\n", tiezi.LocalMaxPage)
 	tiezi.page(tiezi.LocalMaxPage)
 
@@ -555,21 +559,21 @@ func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
  * @param {int} localMaxFloor 本地已有的楼
  * @return {*}
  */
-func (tiezi *Tiezi) genMarkdown(localMaxFloor int, name string) {
-	filePath := fmt.Sprintf("./%v/", tiezi.Tid)
-	fileName := tiezi.Oldtitle + ".md"
-	if len(tiezi.Oldtitle) == 0 {
-		fileName = name + ".md"
+func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
+	if len(FILENAME) > 0 {
+		FILEPATH = fmt.Sprintf("./%v/", FILENAME)
+	} else {
+		FILEPATH = fmt.Sprintf("./%v/", tiezi.Tid)
 	}
-	tiezi.FileName = filepath.Join(filePath, fileName)
+	var fileName = filepath.Join(FILEPATH, "post.md")
 
-	if _, err := os.Stat(tiezi.FileName); os.IsNotExist(err) {
-		if _, err := os.Create(tiezi.FileName); err != nil {
+	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+		if _, err := os.Create(fileName); err != nil {
 			log.Fatalf("创建或打开 .md 文件失败：%v", err)
 		}
 	}
 
-	f, err := os.OpenFile(tiezi.FileName, os.O_APPEND|os.O_WRONLY, 0666)
+	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0666)
 	defer f.Close()
 	if err != nil {
 		log.Fatalf("创建或打开 .md 文件失败：%v", err)
@@ -653,22 +657,29 @@ func responseController() {
 // }
 
 func (tiezi *Tiezi) SaveProcessInfo() {
-	fileName := `./` + cast.ToString(tiezi.Tid) + `/process.ini`
+	if len(FILENAME) > 0 {
+		FILEPATH = fmt.Sprintf("./%v/", FILENAME)
+	} else {
+		FILEPATH = fmt.Sprintf("./%v/", tiezi.Tid)
+	}
+
+	fileName := FILEPATH + `/process.ini`
 	cfg := ini.Empty()
 	cfg.NewSection("local")
 
-	title := "post"
-	if ENABLE_POST_TITLE {
-		title = ToSaveFilename(tiezi.Title)
-	}
-	cfg.Section("local").NewKey("title", cast.ToString(title))
 	cfg.Section("local").NewKey("max_floor", cast.ToString(tiezi.LocalMaxFloor))
 	cfg.Section("local").NewKey("max_page", cast.ToString(tiezi.LocalMaxPage))
 	cfg.SaveTo(fileName)
 }
 
 func (tiezi *Tiezi) SaveAssetsMap() {
-	fileName := `./` + cast.ToString(tiezi.Tid) + `/assets.json`
+	if len(FILENAME) > 0 {
+		FILEPATH = fmt.Sprintf("./%v/", FILENAME)
+	} else {
+		FILEPATH = fmt.Sprintf("./%v/", tiezi.Tid)
+	}
+
+	fileName := FILEPATH + `/assets.json`
 	result, err := json.Marshal(tiezi.Assets)
 	if err != nil {
 		log.Fatalln("将附件转化为 Json 格式失败:", err.Error())
@@ -712,12 +723,7 @@ func (tiezi *Tiezi) Download() {
 		tiezi.fixFloorContent(tiezi.LocalMaxFloor + 1)
 
 		//3. 制作文件
-		if ENABLE_POST_TITLE {
-			var name string = ToSaveFilename(tiezi.Title)
-			tiezi.genMarkdown(tiezi.LocalMaxFloor+1, name)
-		} else {
-			tiezi.genMarkdown(tiezi.LocalMaxFloor+1, "post")
-		}
+		tiezi.genMarkdown(tiezi.LocalMaxFloor + 1)
 
 		tiezi.LocalMaxPage = tiezi.WebMaxPage
 
