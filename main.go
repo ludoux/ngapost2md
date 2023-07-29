@@ -64,6 +64,8 @@ func main() {
 	nga.GET_IP_LOCATION = cfg.Section("post").Key("get_ip_location").MustBool()
 	nga.ENHANCE_ORI_REPLY = cfg.Section("post").Key("enhance_ori_reply").MustBool()
 	nga.ENABLE_POST_TITLE = cfg.Section("post").Key("enable_post_title").MustBool()
+	nga.USE_LOCAL_SMILE_PIC = cfg.Section("post").Key("use_local_smile_pic").MustBool()
+	nga.LOCAL_SMILE_PIC_PATH = cfg.Section("post").Key("local_smile_pic_path").String()
 	nga.Client = nga.NewNgaClient()
 
 	tie := nga.Tiezi{}
