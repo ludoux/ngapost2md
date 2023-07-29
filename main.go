@@ -63,7 +63,6 @@ func main() {
 	nga.PAGE_DOWNLOAD_LIMIT = cfg.Section("network").Key("page_download_limit").RangeInt(100, -1, 100)
 	nga.GET_IP_LOCATION = cfg.Section("post").Key("get_ip_location").MustBool()
 	nga.ENHANCE_ORI_REPLY = cfg.Section("post").Key("enhance_ori_reply").MustBool()
-	nga.ENABLE_POST_TITLE = cfg.Section("post").Key("enable_post_title").MustBool()
 	nga.Client = nga.NewNgaClient()
 
 	tie := nga.Tiezi{}

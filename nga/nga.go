@@ -24,7 +24,6 @@ var (
 	THREAD_COUNT        = 2
 	GET_IP_LOCATION     = false //	获取ip地址
 	ENHANCE_ORI_REPLY   = false //	功能见 #35
-	ENABLE_POST_TITLE   = false //	以帖子标题命名文件 #21
 	PAGE_DOWNLOAD_LIMIT = 100   //	限制单次下载的页数 #56
 	FILENAME            = ""    //  匹配文件夹时的文件夹名字
 	FILEPATH            = ""    //  保存文件时的文件夹名字
@@ -666,7 +665,6 @@ func (tiezi *Tiezi) SaveProcessInfo() {
 	fileName := FILEPATH + `/process.ini`
 	cfg := ini.Empty()
 	cfg.NewSection("local")
-
 	cfg.Section("local").NewKey("max_floor", cast.ToString(tiezi.LocalMaxFloor))
 	cfg.Section("local").NewKey("max_page", cast.ToString(tiezi.LocalMaxPage))
 	cfg.SaveTo(fileName)
