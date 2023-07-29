@@ -7,14 +7,9 @@ import (
 	"strings"
 
 	"github.com/imroc/req/v3"
+	"github.com/ludoux/ngapost2md/config"
 	"github.com/ludoux/ngapost2md/nga"
 	"github.com/spf13/cast"
-	"gopkg.in/ini.v1"
-)
-
-var (
-	//修改了 config.ini 文件后，需要同步修改此处和 assets/config.ini 文件里的 version
-	CONFIG_VERSION = "1.4.0"
 )
 
 func main() {
@@ -41,14 +36,7 @@ func main() {
 			log.Fatalln("请去 GitHub Releases 页面下载最新版本。软件即将退出……")
 		}
 	}
-	cfg, err := ini.Load("config.ini")
-	if err != nil {
-		log.Fatalln("无法读取 config.ini 文件，请检查文件是否存在。错误信息:", err.Error())
-	}
-	if cfg.Section("config").Key("version").String() != CONFIG_VERSION {
-		log.Fatalf("config.ini 版本号(%s)与本软件所需版本(%s)不符！\n软件升级后，请使用最新的 config.ini 配置文件，并修改其内的 UA、uid、cid 和其它个性化设置\n", cfg.Section("config").Key("version").String(), CONFIG_VERSION)
-	}
-
+	cfg := config.GetConfig()
 	//Cookie
 	var ngaPassportUid = cfg.Section("network").Key("ngaPassportUid").String()
 	var ngaPassportCid = cfg.Section("network").Key("ngaPassportCid").String()
