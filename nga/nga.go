@@ -21,11 +21,13 @@ import (
 
 // 这里是配置文件可以改的
 var (
-	THREAD_COUNT        = 2
-	GET_IP_LOCATION     = false //	获取ip地址
-	ENHANCE_ORI_REPLY   = false //	功能见 #35
-	ENABLE_POST_TITLE   = false //	以帖子标题命名文件 #21
-	PAGE_DOWNLOAD_LIMIT = 100   //	限制单次下载的页数 #56
+	THREAD_COUNT         = 2
+	GET_IP_LOCATION      = false       //	获取ip地址
+	ENHANCE_ORI_REPLY    = false       //	功能见 #35
+	ENABLE_POST_TITLE    = false       //	以帖子标题命名文件 #21
+	PAGE_DOWNLOAD_LIMIT  = 100         //	限制单次下载的页数 #56
+	USE_LOCAL_SMILE_PIC  = false       // 使用本地表情 #58
+	LOCAL_SMILE_PIC_PATH = "../smile/" //本地表情路径 #58
 )
 
 // 这里传参可以改
@@ -394,16 +396,22 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 		//表情
 		re = regexp.MustCompile(`\[s\:.+?\:.+?\]`)
 		for _, it := range re.FindAllString(cont, -1) {
-			//cont = strings.ReplaceAll(cont, it, `![`+strings.Split(it, `:`)[2]+`(https://img4.nga.178.com/ngabbs/post/smile/`+strings.ReplaceAll(getSmile(it), `"`, ``)+`)`)
-			smile_name := strings.Split(it, `:`)[1] + strings.TrimRight(strings.Split(it, `:`)[2], "]")
-			if strings.Contains(smile_name, "web") {
-				smile_name = smile_name + ".gif"
+			if !USE_LOCAL_SMILE_PIC {
+				cont = strings.ReplaceAll(cont, it, `![`+strings.Split(it, `:`)[2]+`(https://img4.nga.178.com/ngabbs/post/smile/`+strings.ReplaceAll(getSmile(it), `"`, ``)+`)`)
 			} else {
-				smile_name = smile_name + ".png"
+				smile_name := strings.Split(it, `:`)[1] + strings.TrimRight(strings.Split(it, `:`)[2], "]")
+				if strings.Contains(smile_name, "web") {
+					smile_name = smile_name + ".gif"
+				} else {
+					smile_name = smile_name + ".png"
+				}
+				prefix := LOCAL_SMILE_PIC_PATH
+				if !strings.HasSuffix(prefix, "/") {
+					prefix = prefix + "/"
+				}
+				final := prefix + smile_name
+				cont = strings.ReplaceAll(cont, it, `![`+strings.Split(it, `:`)[2]+`(`+final+`)`)
 			}
-			prefix := "../smile-resized/"
-			final := prefix + smile_name
-			cont = strings.ReplaceAll(cont, it, `![`+strings.Split(it, `:`)[2]+`(`+final+`)`)
 		}
 
 		//删除线
