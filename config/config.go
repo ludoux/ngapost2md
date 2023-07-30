@@ -1,37 +1,88 @@
 package config
 
 import (
-	"log"
-
-	"gopkg.in/ini.v1"
+        "fmt"
+        "gopkg.in/ini.v1"
 )
 
-var (
-	//修改了 config.ini 文件后，需要同步修改此处和 assets/config.ini 文件里的 version
-	CONFIG_VERSION = "1.4.0"
-)
+func UpdateConfig() {
+        // 定义默认配置
+        var defaultConfig = map[string]map[string]string{
+                "config": {
+                        "version": "1.4.0",
+                },
+                "network": {
+                        "base_url":            "https://bbs.nga.cn",
+                        "ua":                  `"""MODIFY_ME"""`,
+                        "ngaPassportUid":      "MODIFY_ME",
+                        "ngaPassportCid":      "MODIFY_ME",
+                        "thread":              "2",
+                        "page_download_limit": "100",
+                },
+                "post": {
+                        "enable_post_title": "False",
+                        "get_ip_location":   "False",
+                        "enhance_ori_reply": "False",
+                },
+        }
 
-func GetConfig() *ini.File {
-	cfg, err := ini.Load("config.ini")
-	ini.PrettyFormat = false
-	if err != nil {
-		log.Fatalln("无法读取 config.ini 文件，请检查文件是否存在。错误信息:", err.Error())
-	}
-	if cfg.Section("config").Key("version").String() != CONFIG_VERSION {
-		UpdateConfig(cfg)
-	}
-	return cfg
-}
+        // 打开旧的INI配置文件
+        cfg, err := ini.Load("config.ini")
+        if err != nil {
+                fmt.Printf("无法加载配置文件: %v", err)
+                return
+        }
 
-func UpdateConfig(cfg *ini.File) {
-	var cfgVersion = cfg.Section("config").Key("version").String()
-	switch cfgVersion {
-	case "1.2.0":
-		//From 1.2.0 to 1.4.0
-		//Change sth
-		cfg.Section("config").Key("version").SetValue("1.4.0")
-		cfg.SaveTo("config.ini")
-	default:
-		//
-	}
+        // 遍历旧配置的节和配置项，并与默认配置进行对比
+        for _, section := range cfg.Sections() {
+                sectionName := section.Name()
+
+                // 如果默认配置中不存在该节，则删除该节
+                if _, ok := defaultConfig[sectionName]; !ok {
+                        cfg.DeleteSection(sectionName)
+                        continue
+                }
+
+                // 遍历旧配置的配置项
+                for _, key := range section.Keys() {
+                        keyName := key.Name()
+                        defaultValue := defaultConfig[sectionName][keyName]
+
+                        // 如果默认配置中不存在该配置项，则删除该配置项
+                        if defaultValue == "" {
+                                section.DeleteKey(keyName)
+                                continue
+                        }
+
+                }
+        }
+
+        // 遍历默认配置的节和配置项，如果旧配置中不存在该节或配置项，则添加
+        for sectionName, sectionConfig := range defaultConfig {
+                section, err := cfg.GetSection(sectionName)
+                if err != nil {
+                        section, err = cfg.NewSection(sectionName)
+                        if err != nil {
+                                fmt.Printf("无法创建新的节: %v", err)
+                                return
+                        }
+                }
+
+                for key, defaultValue := range sectionConfig {
+                        if !section.HasKey(key) {
+                                _, err := section.NewKey(key, defaultValue)
+                                if err != nil {
+                                        fmt.Printf("无法创建新的配置项: %v", err)
+                                        return
+                                }
+                        }
+                }
+        }
+
+        err = cfg.SaveTo("config.ini")
+        if err != nil {
+                fmt.Printf("无法保存更新后的配置文件: %v", err)
+                return
+        }
+
 }

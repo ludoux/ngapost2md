@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
-
+	"gopkg.in/ini.v1"
 	"github.com/imroc/req/v3"
 	"github.com/ludoux/ngapost2md/config"
 	"github.com/ludoux/ngapost2md/nga"
@@ -36,7 +36,15 @@ func main() {
 			log.Fatalln("请去 GitHub Releases 页面下载最新版本。软件即将退出……")
 		}
 	}
-	cfg := config.GetConfig()
+	// 检查并更新配置文件
+	config.UpdateConfig()
+
+	// 读取配置
+	cfg, err := ini.Load("config.ini")
+	if err != nil {
+		log.Fatalln("无法读取 config.ini 文件，请检查文件是否存在。错误信息:", err.Error())
+	}
+
 	//Cookie
 	var ngaPassportUid = cfg.Section("network").Key("ngaPassportUid").String()
 	var ngaPassportCid = cfg.Section("network").Key("ngaPassportCid").String()
