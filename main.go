@@ -24,10 +24,12 @@ func main() {
 		fmt.Println("使用: ngapost2md tid")
 		fmt.Println("选项与参数说明: ")
 		fmt.Println("tid: 待下载的帖子 tid 号")
+		fmt.Println("")
+		fmt.Println("ngapost2md --gen-config-file : 可生成默认配置文件于 config.ini")
 		os.Exit(0)
 	}
 	if len(os.Args) == 2 && (cast.ToString(os.Args[1]) == "--gen-config-file") {
-		err := config.GenDefaultConfigFile()
+		err := config.SaveDefaultConfigFile()
 		if err != nil {
 			log.Fatalln(err.Error())
 		}

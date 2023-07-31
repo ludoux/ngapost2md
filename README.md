@@ -2,6 +2,8 @@
 
 ngapost2md 是一个将 NGA 论坛帖子转换为 Markdown 格式的工具。它支持快速爬楼并存储回复人、时间和内容，同时支持保存正文图片。
 
+*程序主要在 Linux 平台下开发，若您在使用上发现关于跨平台兼容性的问题（特别是目录分隔符相关），欢迎提 issue*
+
 **此为 2023 年由 Go 语言重写的版本。倘若需要旧版 Python 版代码（不再维护），请切换分支至 LEGACY**
 
 <img src="README.assets/gen_md_demo.png" width="900px" alt="gen_md_demo">
@@ -20,30 +22,16 @@ windows
 ```
 .\ngapost2md.exe 5935947
 ```
-参数为帖子的 tid 。
+参数为帖子的 tid，如上述命令里的 5935947。
 
 5. 程序会开始爬取帖子内容并将其转换为 Markdown 格式，转换后的文件将保存在当前目录。
 ## 配置说明
 
-请在 `config.ini` 文件中修改以下配置项：
+详见注释 [config.ini](https://github.com/ludoux/ngapost2md/blob/neo/assets/config.ini)
 
-```ini
-[config]
-version="1.2.0" ;请不要修改此处
+在 release 页面的打包文件中，config.ini 文件与主程序平级。假如需要生成新的默认配置文件，可使用 `--gen-config-file` 参数。此会覆盖 config.ini 为默认配置。
 
-[network]
-base_url="https://bbs.nga.cn" ;软件访问的 NGA 域名。默认值 "https://bbs.nga.cn"
-ua="""MODIFY_ME""" ;浏览器 User-Agent，请修改。通常来说填写你常用浏览器的 UA 即可。
-ngaPassportUid="MODIFY_ME" ;NGA 网站个人 cookie，请修改。
-ngaPassportCid="MODIFY_ME" ;NGA 网站个人 cookie，请修改。
-thread=2 ;线程数，提高理论上可以增加下载速度。仅支持 1、2、3。若开启 enhance_ori_reply，请将此值设定为 1。默认值 2
-page_download_limit=100; 每次下载限制新下载的大约页数。到上限后需要重新运行程序再追加下载，如此直至全部下载成功。允许范围 -1（含）至 100（含）。值为 0 或 -1 时则不限制。默认值 100（约 100 页）。
-
-[post]
-get_ip_location=False ;是否查询用户基于 IP 的地理位置？若启用则会导致至高 20 倍于未启用的网络请求。默认值 False（不启用）
-enhance_ori_reply=False ;将被回复的楼层内容补充完整。见 issue#35 。开启此功能要求同步将 thread 线程数设置为 1，否则可能会补充到未 format 的文本。默认值 False（不启用）
-```
-
+**不要试图在 config.ini 内添加新条目或者增加、修改注释。软件每次启动都会舍弃此类外界变动并重新保存 config.ini 文件。**
 
 ## 注意事项
 

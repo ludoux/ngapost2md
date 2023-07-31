@@ -60,6 +60,10 @@ func GetConfig() (*ini.File, error) {
 	//基于默认配置，往默认配置内填已存在配置的信息
 	for _, section := range defaultcfg.Sections() {
 		for _, key := range section.Keys() {
+			if section.Name() == "config" && key.Name() == "version" {
+				//版本号不读取旧的，换用新的
+				continue
+			}
 			if cfg.HasSection(section.Name()) && cfg.Section(section.Name()).HasKey(key.Name()) {
 				//读取配置内有此项，将value值填入默认配置内
 				cfgValue := cfg.Section(section.Name()).Key(key.Name()).Value()
@@ -90,6 +94,6 @@ func genDefaultConfig() *ini.File {
 	return cfg
 }
 
-func GenDefaultConfigFile() error {
+func SaveDefaultConfigFile() error {
 	return genDefaultConfig().SaveTo("config.ini")
 }
