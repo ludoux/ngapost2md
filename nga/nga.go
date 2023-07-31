@@ -27,6 +27,9 @@ var (
 	PAGE_DOWNLOAD_LIMIT = 100   //	限制单次下载的页数 #56
 	FILENAME            = ""    //  匹配文件夹时的文件夹名字
 	FILEPATH            = ""    //  保存文件时的文件夹名字
+	USE_LOCAL_SMILE_PIC  = false       // 使用本地表情 #58
+	LOCAL_SMILE_PIC_PATH = "../smile/" //本地表情路径 #58
+
 )
 
 // 这里传参可以改
@@ -397,7 +400,22 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 		//表情
 		re = regexp.MustCompile(`\[s\:.+?\:.+?\]`)
 		for _, it := range re.FindAllString(cont, -1) {
-			cont = strings.ReplaceAll(cont, it, `![`+strings.Split(it, `:`)[2]+`(https://img4.nga.178.com/ngabbs/post/smile/`+strings.ReplaceAll(getSmile(it), `"`, ``)+`)`)
+			if !USE_LOCAL_SMILE_PIC {
+				cont = strings.ReplaceAll(cont, it, `![`+strings.Split(it, `:`)[2]+`(https://img4.nga.178.com/ngabbs/post/smile/`+strings.ReplaceAll(getSmile(it), `"`, ``)+`)`)
+			} else {
+				smile_name := strings.Split(it, `:`)[1] + strings.TrimRight(strings.Split(it, `:`)[2], "]")
+				if strings.Contains(smile_name, "web") {
+					smile_name = smile_name + ".gif"
+				} else {
+					smile_name = smile_name + ".png"
+				}
+				prefix := LOCAL_SMILE_PIC_PATH
+				if !strings.HasSuffix(prefix, "/") {
+					prefix = prefix + "/"
+				}
+				final := prefix + smile_name
+				cont = strings.ReplaceAll(cont, it, `![`+strings.Split(it, `:`)[2]+`(`+final+`)`)
+			}
 		}
 
 		//删除线
