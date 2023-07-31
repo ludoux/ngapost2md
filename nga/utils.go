@@ -1,11 +1,17 @@
 package nga
 
 import (
-	"github.com/buger/jsonparser"
-	"github.com/imroc/req/v3"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/buger/jsonparser"
+	"github.com/imroc/req/v3"
+	"github.com/spf13/cast"
 )
 
 func getSmile(key string) string {
@@ -69,4 +75,28 @@ func ToSaveFilename(in string) string {
 	)
 	rt := rp.Replace(in)
 	return rt
+}
+
+// 找不到时会直接返回 ""
+func FindFolderNameByTid(tid int) string {
+	fi, err := os.Stat(cast.ToString(tid))
+	if err == nil && fi.IsDir() {
+		return cast.ToString(tid)
+	} else if err != nil && os.IsNotExist(err) {
+		return ""
+	} else if err != nil {
+		log.Fatalln(err.Error())
+	}
+	matches, err := filepath.Glob(fmt.Sprintf("./%d*-", tid))
+	if err != nil {
+		log.Fatalln(err.Error())
+		return ""
+	}
+	if len(matches) == 1 {
+		return matches[0]
+	} else if len(matches) > 1 {
+		log.Fatalln("有多个文件夹匹配:", fmt.Sprintf("./%d*-", tid))
+		return ""
+	}
+	return ""
 }

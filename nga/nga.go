@@ -21,14 +21,14 @@ import (
 
 // 这里是配置文件可以改的
 var (
-	THREAD_COUNT        = 2
-	GET_IP_LOCATION     = false //	获取ip地址
-	ENHANCE_ORI_REPLY   = false //	功能见 #35
-	PAGE_DOWNLOAD_LIMIT = 100   //	限制单次下载的页数 #56
-	FILENAME            = ""    //  匹配文件夹时的文件夹名字
-	FILEPATH            = ""    //  保存文件时的文件夹名字
-	USE_LOCAL_SMILE_PIC  = false       // 使用本地表情 #58
-	LOCAL_SMILE_PIC_PATH = "../smile/" //本地表情路径 #58
+	THREAD_COUNT              = 2
+	GET_IP_LOCATION           = false //	获取ip地址
+	ENHANCE_ORI_REPLY         = false //	功能见 #35
+	PAGE_DOWNLOAD_LIMIT       = 100   //	限制单次下载的页数 #56
+	USE_TITLE_AS_FOLDER_NAME  = false
+	USE_TITLE_AS_MD_FILE_NAME = false
+	USE_LOCAL_SMILE_PIC       = false       // 使用本地表情 #58
+	LOCAL_SMILE_PIC_PATH      = "../smile/" //本地表情路径 #58
 
 )
 
@@ -70,20 +70,21 @@ type Floor struct {
 }
 type Floors []Floor
 type Tiezi struct {
-	Tid           int
-	Title         string
-	Catelogy      string
-	Username      string
-	UserId        int
-	WebMaxPage    int
-	LocalMaxPage  int
-	LocalMaxFloor int
-	FloorCount    int    //包含主楼
-	Floors        Floors //主楼为[0]
-	HotPosts      Floors
-	Timestamp     int64  //page() fixFloorContent()  中会更新
-	Version       string //这个是软件的version
-	Assets        map[string]string
+	Tid             int
+	Title           string
+	TitleFolderSafe string
+	Catelogy        string
+	Username        string
+	UserId          int
+	WebMaxPage      int
+	LocalMaxPage    int
+	LocalMaxFloor   int
+	FloorCount      int    //包含主楼
+	Floors          Floors //主楼为[0]
+	HotPosts        Floors
+	Timestamp       int64  //page() fixFloorContent()  中会更新
+	Version         string //这个是软件的version
+	Assets          map[string]string
 }
 
 var responseChannel = make(chan string, 15)
@@ -168,7 +169,8 @@ func (tiezi *Tiezi) page(page int) {
 
 		//标题
 		value_str, _ := jsonparser.GetString(resp.Bytes(), "tsubject")
-		tiezi.Title = ToSaveFilename(value_str)
+		tiezi.Title = value_str
+		tiezi.TitleFolderSafe = ToSaveFilename(tiezi.Title)
 
 		//分区名
 		value_str, _ = jsonparser.GetString(resp.Bytes(), "forum_name")
@@ -216,7 +218,7 @@ func (tiezi *Tiezi) page(page int) {
  * @return {*}
  */
 func (tiezi *Tiezi) InitFromWeb(tid int) {
-	tiezi.init(tid, true)
+	tiezi.init(tid)
 	tiezi.Version = VERSION
 	tiezi.Assets = map[string]string{}
 	tiezi.LocalMaxPage = 1
@@ -225,34 +227,28 @@ func (tiezi *Tiezi) InitFromWeb(tid int) {
 	tiezi.page(tiezi.LocalMaxPage)
 }
 
-func (tiezi *Tiezi) ChangeDirName(tid int) {
-	if len(FILENAME) > 0 {
-		fmt.Println("")
-	} else {
-		os.Rename("./"+cast.ToString(tid), "./"+cast.ToString(tid)+"-"+tiezi.Title)
-		fmt.Println("修改完成")
-	}
-}
-
 /**
  * @description: 本地已经有生成过，现在来根据local信息来追加下载新楼层。
  * @param {int} tid 帖子tid
  * @return {*}
  */
 func (tiezi *Tiezi) InitFromLocal(tid int) {
-	tiezi.init(tid, false)
+	tiezi.init(tid)
 	tiezi.Version = VERSION
 
 	checkFileExistence := func(fileName string) {
 		if _, err := os.Stat(fileName); os.IsNotExist(err) {
-			log.Fatalf("%s 文件丢失，软件将退出。\n", fileName)
+			log.Fatalln(fileName, "文件丢失，软件将退出。")
 		}
 	}
-
-	processFileName := `./` + FILENAME + `/process.ini`
+	folderName := FindFolderNameByTid(tid)
+	if folderName == "" {
+		log.Fatalln("找不到本地 tid 文件夹，软件将退出。")
+	}
+	processFileName := fmt.Sprintf("./%s/process.ini", folderName)
 	checkFileExistence(processFileName)
 
-	assetsFileName := `./` + FILENAME + `/assets.json`
+	assetsFileName := fmt.Sprintf("./%s/assets.json", folderName)
 	checkFileExistence(assetsFileName)
 
 	jsonBytes, _ := os.ReadFile(assetsFileName)
@@ -274,11 +270,7 @@ func (tiezi *Tiezi) InitFromLocal(tid int) {
  * @param {bool} crateDict 是否创建文件夹
  * @return {*}
  */
-func (tiezi *Tiezi) init(tid int, crateDict bool) {
-	if crateDict {
-		os.MkdirAll(`./`+cast.ToString(tid), os.ModePerm)
-	}
-
+func (tiezi *Tiezi) init(tid int) {
 	tiezi.Tid = tid
 }
 
@@ -308,7 +300,6 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 	 *3. quote reply等，[b]变化；假如是匿名用户，就不会有 uid框框
 	 */
 	//tid int, assets *(map[string]string)
-	tid := tiezi.Tid
 	assets := &tiezi.Assets
 	oriFloor := &tiezi.Floors[floor_i]
 	floor := &tiezi.Floors[floor_i]
@@ -389,7 +380,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 				mutex.Unlock()
 				time.Sleep(time.Millisecond * time.Duration(DELAY_MS))
 				log.Println("下载图片:", fileName)
-				downloadAssets(url, `./`+cast.ToString(tid)+`/`+fileName)
+				downloadAssets(url, `./`+tiezi.GetNeededFolderName()+`/`+fileName)
 				//log.Println("下载图片成功:", fileName)
 			} else {
 				mutex.Unlock()
@@ -577,20 +568,25 @@ func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
  * @return {*}
  */
 func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
-	if len(FILENAME) > 0 {
-		FILEPATH = fmt.Sprintf("./%v/", FILENAME)
-	} else {
-		FILEPATH = fmt.Sprintf("./%v/", tiezi.Tid)
+	folder := fmt.Sprintf("./%s/", tiezi.GetNeededFolderName())
+	os.MkdirAll(folder, os.ModePerm)
+	//后续判断md文件名。假如 post.md存在则继续沿用，否则根据个性化来设置
+	mdFilePath := filepath.Join(folder, "post.md")
+	if _, err := os.Stat(mdFilePath); os.IsNotExist(err) {
+		//post.md不存在，判断是否需要个性化
+		if USE_TITLE_AS_MD_FILE_NAME {
+			mdName := fmt.Sprintf("%s.md", tiezi.TitleFolderSafe)
+			mdFilePath = filepath.Join(folder, mdName)
+		}
 	}
-	var fileName = filepath.Join(FILEPATH, "post.md")
 
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		if _, err := os.Create(fileName); err != nil {
+	if _, err := os.Stat(mdFilePath); os.IsNotExist(err) {
+		if _, err := os.Create(mdFilePath); err != nil {
 			log.Fatalf("创建或打开 .md 文件失败：%v", err)
 		}
 	}
 
-	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, 0666)
+	f, err := os.OpenFile(mdFilePath, os.O_APPEND|os.O_WRONLY, 0666)
 	defer f.Close()
 	if err != nil {
 		log.Fatalf("创建或打开 .md 文件失败：%v", err)
@@ -673,14 +669,23 @@ func responseController() {
 // 	defer f.Close()
 // }
 
-func (tiezi *Tiezi) SaveProcessInfo() {
-	if len(FILENAME) > 0 {
-		FILEPATH = fmt.Sprintf("./%v/", FILENAME)
-	} else {
-		FILEPATH = fmt.Sprintf("./%v/", tiezi.Tid)
+// 会首先调用FindFolderNameByTid，确定本地没有相关文件夹再返回指定格式文件名。否则返回本地已有文件名
+func (tiezi *Tiezi) GetNeededFolderName() string {
+	already := FindFolderNameByTid(tiezi.Tid)
+	if already != "" {
+		return already
 	}
+	if USE_TITLE_AS_FOLDER_NAME {
+		return fmt.Sprintf("%d-%s", tiezi.Tid, tiezi.TitleFolderSafe)
+	} else {
+		return cast.ToString(tiezi.Tid)
+	}
+}
 
-	fileName := FILEPATH + `/process.ini`
+func (tiezi *Tiezi) SaveProcessInfo() {
+	folder := fmt.Sprintf("./%s/", tiezi.GetNeededFolderName())
+
+	fileName := filepath.Join(folder, "process.ini")
 	cfg := ini.Empty()
 	cfg.NewSection("local")
 	cfg.Section("local").NewKey("max_floor", cast.ToString(tiezi.LocalMaxFloor))
@@ -689,13 +694,9 @@ func (tiezi *Tiezi) SaveProcessInfo() {
 }
 
 func (tiezi *Tiezi) SaveAssetsMap() {
-	if len(FILENAME) > 0 {
-		FILEPATH = fmt.Sprintf("./%v/", FILENAME)
-	} else {
-		FILEPATH = fmt.Sprintf("./%v/", tiezi.Tid)
-	}
+	folder := fmt.Sprintf("./%s/", tiezi.GetNeededFolderName())
 
-	fileName := FILEPATH + `/assets.json`
+	fileName := filepath.Join(folder, "assets.json")
 	result, err := json.Marshal(tiezi.Assets)
 	if err != nil {
 		log.Fatalln("将附件转化为 Json 格式失败:", err.Error())

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/imroc/req/v3"
@@ -15,7 +14,7 @@ import (
 
 var (
 	//修改了 config.ini 文件后，需要同步修改此处和 assets/config.ini 文件里的 version
-	CONFIG_VERSION = "1.2.0"
+	CONFIG_VERSION = "1.4.0"
 )
 
 func main() {
@@ -66,6 +65,8 @@ func main() {
 	nga.ENHANCE_ORI_REPLY = cfg.Section("post").Key("enhance_ori_reply").MustBool()
 	nga.USE_LOCAL_SMILE_PIC = cfg.Section("post").Key("use_local_smile_pic").MustBool()
 	nga.LOCAL_SMILE_PIC_PATH = cfg.Section("post").Key("local_smile_pic_path").String()
+	nga.USE_TITLE_AS_FOLDER_NAME = cfg.Section("post").Key("use_title_as_folder_name").MustBool()
+	nga.USE_TITLE_AS_MD_FILE_NAME = cfg.Section("post").Key("use_title_as_md_file_name").MustBool()
 	nga.Client = nga.NewNgaClient()
 
 	tie := nga.Tiezi{}
@@ -74,27 +75,14 @@ func main() {
 	if err != nil {
 		log.Fatalln("tid 无法转为数字:", err.Error())
 	}
+	path := nga.FindFolderNameByTid(tid)
+	if path != "" {
+		log.Printf("本地存在此 tid (%s) 文件夹，追加最新更改。", path)
+		tie.InitFromLocal(tid)
 
-	// 检查是否存在包含tid的文件夹
-	dirname := fmt.Sprintf(("%v%v%v"), "./", tid, "*")
-
-	matches, err := filepath.Glob(dirname)
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
-
-	if len(matches) > 0 {
-		for _, match := range matches {
-			nga.FILENAME = match
-			log.Println("本地存在此 tid 文件夹，追加最新更改。")
-			tie.InitFromLocal(tid)
-		}
 	} else {
 		tie.InitFromWeb(tid)
 	}
 
 	tie.Download()
-	// 第一次下载完成后修改文件夹名，追加修改时跳过
-	tie.ChangeDirName(tid)
 }
