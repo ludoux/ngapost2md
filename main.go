@@ -7,14 +7,9 @@ import (
 	"strings"
 
 	"github.com/imroc/req/v3"
+	"github.com/ludoux/ngapost2md/config"
 	"github.com/ludoux/ngapost2md/nga"
 	"github.com/spf13/cast"
-	"gopkg.in/ini.v1"
-)
-
-var (
-	//修改了 config.ini 文件后，需要同步修改此处和 assets/config.ini 文件里的 version
-	CONFIG_VERSION = "1.4.0"
 )
 
 func main() {
@@ -29,6 +24,16 @@ func main() {
 		fmt.Println("使用: ngapost2md tid")
 		fmt.Println("选项与参数说明: ")
 		fmt.Println("tid: 待下载的帖子 tid 号")
+		fmt.Println("")
+		fmt.Println("ngapost2md --gen-config-file : 可生成默认配置文件于 config.ini")
+		os.Exit(0)
+	}
+	if len(os.Args) == 2 && (cast.ToString(os.Args[1]) == "--gen-config-file") {
+		err := config.SaveDefaultConfigFile()
+		if err != nil {
+			log.Fatalln(err.Error())
+		}
+		log.Println("导出默认配置文件 config.ini 成功。")
 		os.Exit(0)
 	}
 
@@ -41,12 +46,13 @@ func main() {
 			log.Fatalln("请去 GitHub Releases 页面下载最新版本。软件即将退出……")
 		}
 	}
-	cfg, err := ini.Load("config.ini")
+	// 检查并更新配置文件
+	config.GetConfig()
+
+	// 读取配置
+	cfg, err := config.GetConfig()
 	if err != nil {
-		log.Fatalln("无法读取 config.ini 文件，请检查文件是否存在。错误信息:", err.Error())
-	}
-	if cfg.Section("config").Key("version").String() != CONFIG_VERSION {
-		log.Fatalf("config.ini 版本号(%s)与本软件所需版本(%s)不符！\n软件升级后，请使用最新的 config.ini 配置文件，并修改其内的 UA、uid、cid 和其它个性化设置\n", cfg.Section("config").Key("version").String(), CONFIG_VERSION)
+		log.Fatalln(err.Error())
 	}
 
 	//Cookie
