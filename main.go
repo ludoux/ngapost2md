@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/imroc/req/v3"
-	"github.com/ludoux/ngapost2md/nga"
-	"github.com/spf13/cast"
-	"gopkg.in/ini.v1"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/imroc/req/v3"
+	"github.com/ludoux/ngapost2md/nga"
+	"github.com/spf13/cast"
+	"gopkg.in/ini.v1"
 )
 
 var (
@@ -63,7 +64,6 @@ func main() {
 	nga.PAGE_DOWNLOAD_LIMIT = cfg.Section("network").Key("page_download_limit").RangeInt(100, -1, 100)
 	nga.GET_IP_LOCATION = cfg.Section("post").Key("get_ip_location").MustBool()
 	nga.ENHANCE_ORI_REPLY = cfg.Section("post").Key("enhance_ori_reply").MustBool()
-	nga.ENABLE_POST_TITLE = cfg.Section("post").Key("enable_post_title").MustBool()
 	nga.USE_LOCAL_SMILE_PIC = cfg.Section("post").Key("use_local_smile_pic").MustBool()
 	nga.LOCAL_SMILE_PIC_PATH = cfg.Section("post").Key("local_smile_pic_path").String()
 	nga.Client = nga.NewNgaClient()
