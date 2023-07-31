@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
-	"gopkg.in/ini.v1"
+
 	"github.com/imroc/req/v3"
 	"github.com/ludoux/ngapost2md/config"
 	"github.com/ludoux/ngapost2md/nga"
@@ -26,6 +26,14 @@ func main() {
 		fmt.Println("tid: 待下载的帖子 tid 号")
 		os.Exit(0)
 	}
+	if len(os.Args) == 2 && (cast.ToString(os.Args[1]) == "--gen-config-file") {
+		err := config.GenDefaultConfigFile()
+		if err != nil {
+			log.Fatalln(err.Error())
+		}
+		log.Println("导出默认配置文件 config.ini 成功。")
+		os.Exit(0)
+	}
 
 	//DEBUG_MODE不为1时（不是DEBUG_MODE）时检测更新
 	if nga.DEBUG_MODE != "1" {
@@ -37,12 +45,12 @@ func main() {
 		}
 	}
 	// 检查并更新配置文件
-	config.UpdateConfig()
+	config.GetConfig()
 
 	// 读取配置
-	cfg, err := ini.Load("config.ini")
+	cfg, err := config.GetConfig()
 	if err != nil {
-		log.Fatalln("无法读取 config.ini 文件，请检查文件是否存在。错误信息:", err.Error())
+		log.Fatalln(err.Error())
 	}
 
 	//Cookie
