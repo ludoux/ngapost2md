@@ -30,7 +30,7 @@ var (
 	USE_LOCAL_SMILE_PIC       = false       // 使用本地表情 #58
 	LOCAL_SMILE_PIC_PATH      = "../smile/" //本地表情路径 #58
 	MATCH_NAME                = ""          // match dirname
-	SVAE_NAME                 = ""          // save dirname
+	SAVE_NAME                 = ""          // save dirname
 
 )
 
@@ -382,7 +382,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 				mutex.Unlock()
 				time.Sleep(time.Millisecond * time.Duration(DELAY_MS))
 				log.Println("下载图片:", fileName)
-				downloadAssets(url, `./`+SVAE_NAME+`/`+fileName)
+				downloadAssets(url, `./`+SAVE_NAME+`/`+fileName)
 				//log.Println("下载图片成功:", fileName)
 			} else {
 				mutex.Unlock()
@@ -571,17 +571,17 @@ func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
  */
 func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 	if len(MATCH_NAME) > 0 {
-		SVAE_NAME = fmt.Sprintf("./%v/", MATCH_NAME)
+		SAVE_NAME = fmt.Sprintf("./%v/", MATCH_NAME)
 	} else {
-		SVAE_NAME = fmt.Sprintf("./%v/", tiezi.Tid)
+		SAVE_NAME = fmt.Sprintf("./%v/", tiezi.Tid)
 	}
 	//后续判断md文件名。假如 post.md存在则继续沿用，否则根据个性化来设置
-	mdFilePath := filepath.Join(SVAE_NAME, "post.md")
+	mdFilePath := filepath.Join(SAVE_NAME, "post.md")
 	if _, err := os.Stat(mdFilePath); os.IsNotExist(err) {
 		//post.md不存在，判断是否需要个性化
 		if USE_TITLE_AS_MD_FILE_NAME {
 			mdName := fmt.Sprintf("%s.md", tiezi.TitleFolderSafe)
-			mdFilePath = filepath.Join(SVAE_NAME, mdName)
+			mdFilePath = filepath.Join(SAVE_NAME, mdName)
 		}
 	}
 
@@ -685,12 +685,12 @@ func (tiezi *Tiezi) ChangeDirName(tid int) {
 
 func (tiezi *Tiezi) SaveProcessInfo() {
 	if len(MATCH_NAME) > 0 {
-		SVAE_NAME = fmt.Sprintf("./%v/", MATCH_NAME)
+		SAVE_NAME = fmt.Sprintf("./%v/", MATCH_NAME)
 	} else {
-		SVAE_NAME = fmt.Sprintf("./%v/", tiezi.Tid)
+		SAVE_NAME = fmt.Sprintf("./%v/", tiezi.Tid)
 	}
 
-	fileName := filepath.Join(SVAE_NAME, "process.ini")
+	fileName := filepath.Join(SAVE_NAME, "process.ini")
 	cfg := ini.Empty()
 	cfg.NewSection("local")
 	cfg.Section("local").NewKey("max_floor", cast.ToString(tiezi.LocalMaxFloor))
@@ -700,12 +700,12 @@ func (tiezi *Tiezi) SaveProcessInfo() {
 
 func (tiezi *Tiezi) SaveAssetsMap() {
 	if len(MATCH_NAME) > 0 {
-		SVAE_NAME = fmt.Sprintf("./%v/", MATCH_NAME)
+		SAVE_NAME = fmt.Sprintf("./%v/", MATCH_NAME)
 	} else {
-		SVAE_NAME = fmt.Sprintf("./%v/", tiezi.Tid)
+		SAVE_NAME = fmt.Sprintf("./%v/", tiezi.Tid)
 	}
 
-	fileName := filepath.Join(SVAE_NAME, "assets.json")
+	fileName := filepath.Join(SAVE_NAME, "assets.json")
 	result, err := json.Marshal(tiezi.Assets)
 	if err != nil {
 		log.Fatalln("将附件转化为 Json 格式失败:", err.Error())
