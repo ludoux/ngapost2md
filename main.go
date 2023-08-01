@@ -2,14 +2,14 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"os"
-	"strings"
-
 	"github.com/imroc/req/v3"
 	"github.com/ludoux/ngapost2md/config"
 	"github.com/ludoux/ngapost2md/nga"
 	"github.com/spf13/cast"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -81,14 +81,27 @@ func main() {
 	if err != nil {
 		log.Fatalln("tid 无法转为数字:", err.Error())
 	}
-	path := nga.FindFolderNameByTid(tid)
-	if path != "" {
-		log.Printf("本地存在此 tid (%s) 文件夹，追加最新更改。", path)
-		tie.InitFromLocal(tid)
+	// 检查是否存在包含tid的文件夹
+	dirname := fmt.Sprintf(("%v%v%v"), "./", tid, "*")
 
+	matches, err := filepath.Glob(dirname)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	if len(matches) > 0 {
+		for _, match := range matches {
+			nga.MATCH_NAME = match
+			log.Println("本地存在此 tid 文件夹，追加最新更改。")
+			tie.InitFromLocal(tid)
+		}
 	} else {
 		tie.InitFromWeb(tid)
 	}
 
 	tie.Download()
+	// 第一次下载完成后修改文件夹名，追加修改时跳过
+	tie.ChangeDirName(tid)
+
 }
