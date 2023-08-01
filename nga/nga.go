@@ -570,11 +570,6 @@ func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
  * @return {*}
  */
 func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
-	if len(MATCH_NAME) > 0 {
-		SAVE_NAME = fmt.Sprintf("./%v/", MATCH_NAME)
-	} else {
-		SAVE_NAME = fmt.Sprintf("./%v/", tiezi.Tid)
-	}
 	//后续判断md文件名。假如 post.md存在则继续沿用，否则根据个性化来设置
 	mdFilePath := filepath.Join(SAVE_NAME, "post.md")
 	if _, err := os.Stat(mdFilePath); os.IsNotExist(err) {
@@ -655,8 +650,11 @@ func (tiezi *Tiezi) ChangeDirName(tid int) {
 	if len(MATCH_NAME) > 0 {
 		fmt.Println("")
 	} else {
-		os.Rename("./"+cast.ToString(tid), "./"+cast.ToString(tid)+"-"+tiezi.Title)
-		fmt.Println("修改完成")
+		// 在这里判断是否启用tid+标题命名文件夹
+		if USE_TITLE_AS_FOLDER_NAME {
+			os.Rename("./"+cast.ToString(tid), "./"+cast.ToString(tid)+"-"+tiezi.Title)
+			fmt.Println("修改完成")
+		}
 	}
 }
 
@@ -684,12 +682,6 @@ func (tiezi *Tiezi) ChangeDirName(tid int) {
 // }
 
 func (tiezi *Tiezi) SaveProcessInfo() {
-	if len(MATCH_NAME) > 0 {
-		SAVE_NAME = fmt.Sprintf("./%v/", MATCH_NAME)
-	} else {
-		SAVE_NAME = fmt.Sprintf("./%v/", tiezi.Tid)
-	}
-
 	fileName := filepath.Join(SAVE_NAME, "process.ini")
 	cfg := ini.Empty()
 	cfg.NewSection("local")
@@ -699,12 +691,6 @@ func (tiezi *Tiezi) SaveProcessInfo() {
 }
 
 func (tiezi *Tiezi) SaveAssetsMap() {
-	if len(MATCH_NAME) > 0 {
-		SAVE_NAME = fmt.Sprintf("./%v/", MATCH_NAME)
-	} else {
-		SAVE_NAME = fmt.Sprintf("./%v/", tiezi.Tid)
-	}
-
 	fileName := filepath.Join(SAVE_NAME, "assets.json")
 	result, err := json.Marshal(tiezi.Assets)
 	if err != nil {

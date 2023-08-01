@@ -93,10 +93,25 @@ func main() {
 	if len(matches) > 0 {
 		for _, match := range matches {
 			nga.MATCH_NAME = match
+
+			// 代码复用，判端是第一次运行，还是后续追加更新
+			if len(nga.MATCH_NAME) > 0 {
+				nga.SAVE_NAME = fmt.Sprintf("./%v/", nga.MATCH_NAME)
+			} else {
+				nga.SAVE_NAME = fmt.Sprintf("./%v/", tid)
+			}
+
 			log.Println("本地存在此 tid 文件夹，追加最新更改。")
 			tie.InitFromLocal(tid)
 		}
 	} else {
+		// 代码复用，判端是第一次运行，还是后续追加更新
+		if len(nga.MATCH_NAME) > 0 {
+			nga.SAVE_NAME = fmt.Sprintf("./%v/", nga.MATCH_NAME)
+		} else {
+			nga.SAVE_NAME = fmt.Sprintf("./%v/", tid)
+		}
+
 		tie.InitFromWeb(tid)
 	}
 
