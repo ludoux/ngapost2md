@@ -12,9 +12,35 @@ jobs:
 
       - name: gen changelog
         id: changelog
-        uses: metcalfc/changelog-generator@v4.1.0
+        uses: mikepenz/release-changelog-builder-action@v4.0.0-rc06
         with:
-          myToken: ${{ secrets.GITHUB_TOKEN }}
+          configurationJson: |
+            {
+              "template": "#{{CHANGELOG}}\n\n<details>\n<summary>未归类</summary>\n\n#{{UNCATEGORIZED}}\n</details>",
+              "pr_template": "- #${{NUMBER}} ${{TITLE}} by @${{AUTHOR}}",
+              "categories": [
+                {
+                  "title": "## 🚀 功能",
+                  "labels": ["feature"],
+                  "empty_content": "- 未有相关功能类 PR."
+                },
+                {
+                  "title": "## 🐛 修复",
+                  "labels": ["fix"],
+                  "empty_content": "- 未有相关修复类 PR."
+                },
+                {
+                    "title": "## 💬 其他",
+                    "labels": ["documentation", "other"],
+                    "exhaustive": false
+                }
+              ],
+              "base_branches": [
+                "neo"
+              ]
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release
         id: create_release
