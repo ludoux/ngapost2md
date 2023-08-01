@@ -82,12 +82,11 @@ func FindFolderNameByTid(tid int) string {
 	fi, err := os.Stat(cast.ToString(tid))
 	if err == nil && fi.IsDir() {
 		return cast.ToString(tid)
-	} else if err != nil && os.IsNotExist(err) {
-		return ""
-	} else if err != nil {
+	} else if err != nil && !os.IsNotExist(err) {
 		log.Fatalln(err.Error())
 	}
-	matches, err := filepath.Glob(fmt.Sprintf("./%d*-", tid))
+	//即不存在直接以 tid 命名的文件夹，接下来判断是否存在以 tid- 开头的文件夹
+	matches, err := filepath.Glob(fmt.Sprintf("./%d-*", tid))
 	if err != nil {
 		log.Fatalln(err.Error())
 		return ""
@@ -95,7 +94,7 @@ func FindFolderNameByTid(tid int) string {
 	if len(matches) == 1 {
 		return matches[0]
 	} else if len(matches) > 1 {
-		log.Fatalln("有多个文件夹匹配:", fmt.Sprintf("./%d*-", tid))
+		log.Fatalln("有多个文件夹匹配:", fmt.Sprintf("./%d-*", tid))
 		return ""
 	}
 	return ""
