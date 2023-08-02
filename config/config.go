@@ -15,9 +15,9 @@ var defaultConfig = map[string][][3]string{
 	},
 	"network": {
 		{"base_url", "https://bbs.nga.cn", "软件访问的nga域名。默认值 https://bbs.nga.cn"},
-		{"ua", "<;MODIFY_ME;>", "浏览器User-Agent，通常来说填写你常用浏览器的UA即可。修改时请将两个分号和内部英文、空格等均替换删除修改。"},
-		{"ngaPassportUid", "<;MODIFY_ME;>", "nga网站个人cookie项目。修改时请将 两个尖括号及内部所有文本 均替换删除修改。"},
-		{"ngaPassportCid", "<;MODIFY_ME;>", "nga网站个人cookie项目。修改时请将 两个尖括号及内部所有文本 均替换删除修改。"},
+		{"ua", "<;MODIFY_ME;>", "浏览器User-Agent，通常来说填写你常用浏览器的UA即可。修改时请将 两个尖括号及内部所有文本 均替换删除修改，且确保值是被反引号所包裹。"},
+		{"ngaPassportUid", "<;MODIFY_ME;>", "nga网站个人cookie项目。修改时请将 两个尖括号及内部所有文本 均替换删除修改，且确保值是被反引号所包裹。"},
+		{"ngaPassportCid", "<;MODIFY_ME;>", "nga网站个人cookie项目。修改时请将 两个尖括号及内部所有文本 均替换删除修改，且确保值是被反引号所包裹。"},
 		{"thread", "2", "网络并发数，提高理论上可以增加下载速度。仅支持1、2、3。若开启enhance_ori_reply，请将此值设定为1。默认值2。"},
 		{"page_download_limit", "100", "[#56]每次下载限制新下载的大约页数。到上限后需要重新运行程序再追加下载，如此直至全部下载成功。允许范围-1（含）至100（含）。值为0或-1时则不限制。默认值100（约100页）。"},
 	},
