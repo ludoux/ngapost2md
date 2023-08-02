@@ -17,7 +17,7 @@ jobs:
           configurationJson: |
             {
               "template": "#{{CHANGELOG}}\n\n<details>\n<summary>未归类</summary>\n\n#{{UNCATEGORIZED}}\n</details>",
-              "pr_template": "- #{{NUMBER}} {{TITLE}} by @{{AUTHOR}}",
+              "pr_template": "- ##{{NUMBER}} #{{TITLE}} by @#{{AUTHOR}}",
               "categories": [
                 {
                   "title": "## 🚀 功能",
