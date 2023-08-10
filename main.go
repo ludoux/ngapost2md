@@ -46,11 +46,9 @@ func main() {
 			log.Fatalln("请去 GitHub Releases 页面下载最新版本。软件即将退出……")
 		}
 	}
-	// 检查并更新配置文件
-	config.GetConfig()
 
-	// 读取配置
-	cfg, err := config.GetConfig()
+	// 检查并按需更新配置文件
+	cfg, err := config.GetConfigAutoUpdate()
 	if err != nil {
 		log.Fatalln(err.Error())
 	}

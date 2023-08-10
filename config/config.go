@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 
 	"gopkg.in/ini.v1"
 )
@@ -32,7 +33,7 @@ var defaultConfig = map[string][][3]string{
 }
 
 // 会自动更新、格式化配置文件并保存
-func GetConfig() (*ini.File, error) {
+func GetConfigAutoUpdate() (*ini.File, error) {
 	//不要等号对齐，那样子好难看
 	ini.PrettyFormat = false
 	// 打开旧的INI配置文件
@@ -40,12 +41,19 @@ func GetConfig() (*ini.File, error) {
 	if err != nil {
 		return nil, fmt.Errorf("无法加载配置文件: %v", err)
 	}
-	oldCfgVersion := cfg.Section("config").Key("version").String()
+
+	if !cfg.Section("config").HasKey("version") {
+		//确保错误配置文件不会导致被覆盖
+		return nil, fmt.Errorf("无法找到配置文件版本信息！可能读取错误，或配置文件已损坏。请手动重新填写默认配置文件。")
+	}
+
+	localCfgVersion := cfg.Section("config").Key("version").String()
 	//此为默认配置
 	defaultcfg := genDefaultConfig()
+	latestCfgVersion := defaultcfg.Section("config").Key("version").String()
 
 	// 针对相同功能，新配置相比于旧配置名字不同，需要进行自动迁移
-	switch oldCfgVersion {
+	switch localCfgVersion {
 	case "1.2.0":
 		//从1.2.0->1.4.0时，enable_post_title 更名为 use_title_as_md_file_name
 		var oldValue string
@@ -72,9 +80,12 @@ func GetConfig() (*ini.File, error) {
 		}
 	}
 
-	err = defaultcfg.SaveTo("config.ini")
-	if err != nil {
-		return nil, fmt.Errorf("无法保存更新后的配置文件: %v", err)
+	if localCfgVersion != latestCfgVersion {
+		log.Println("配置文件已由", localCfgVersion, "自动更新至", latestCfgVersion, "，请查看引入的新功能特性。部分注释可能被移除或更改。")
+		err = defaultcfg.SaveTo("config.ini")
+		if err != nil {
+			return nil, fmt.Errorf("无法保存更新后的配置文件: %v", err)
+		}
 	}
 	return cfg, nil
 }
