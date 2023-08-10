@@ -21,6 +21,7 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab // indirect
+	github.com/jessevdk/go-flags v1.5.0 // indirect
 	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/onsi/ginkgo/v2 v2.11.0 // indirect
 	github.com/orirawlings/persistent-cookiejar v0.3.2 // indirect
