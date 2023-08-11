@@ -81,11 +81,11 @@ func GetConfigAutoUpdate() (*ini.File, error) {
 	}
 
 	if localCfgVersion != latestCfgVersion {
-		log.Println("配置文件已由", localCfgVersion, "自动更新至", latestCfgVersion, "，请查看引入的新功能特性。部分注释可能被移除或更改。")
 		err = defaultcfg.SaveTo("config.ini")
 		if err != nil {
 			return nil, fmt.Errorf("无法保存更新后的配置文件: %v", err)
 		}
+		log.Println("配置文件已由", localCfgVersion, "自动更新至", latestCfgVersion, "，请查看引入的新功能特性。部分注释可能被移除或更改。")
 	}
 	return cfg, nil
 }
