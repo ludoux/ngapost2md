@@ -25,6 +25,22 @@ windows
 参数为帖子的 tid，如上述命令里的 5935947。
 
 5. 程序会开始爬取帖子内容并将其转换为 Markdown 格式，转换后的文件将保存在当前目录。
+
+参数详情
+```
+> ./ngapost2md -h
+
+使用: ngapost2md tid [--force-no-check-update] [--dump-update-info]
+选项与参数说明: 
+tid: 待下载的帖子 tid 号
+--force-no-check-update      在编译时间后的不少于 60 天内，不检测版本更新。
+--dump-update-info           当检测到新版本时，将版本信息原始文件写入 NEED_UPDATE 文件。
+
+ngapost2md -v, --version     显示版本信息并退出
+ngapost2md -h, --help        显示此帮助信息并退出
+ngapost2md --gen-config-file 生成默认配置文件于 config.ini 并退出
+```
+
 ## 配置说明
 
 详见注释 [config.ini](https://github.com/ludoux/ngapost2md/blob/neo/assets/config.ini)
