@@ -15,8 +15,8 @@ import (
 )
 
 type Option struct {
-	ForceNoCheckUpdate bool `long:"force-no-check-update" description:"在编译时间后的不少于 60 天内，不检测版本更新。"`
-	DumpUpdateInfo     bool `long:"dump-update-info" description:"当检测到新版本时，将版本信息原始文件写入 NEED_UPDATE 文件。"`
+	ForceNoCheckUpdate bool `long:"force-no-check-update" description:"在编译时间后的不少于 60 天内，不检测版本更新"`
+	DumpUpdateInfo     bool `long:"dump-update-info" description:"当检测到新版本时，将版本信息原始文件写入 NEED_UPDATE 文件"`
 	Version            bool `short:"v" long:"version" description:"显示版本信息并退出"`
 	Help               bool `short:"h" long:"help" description:"显示此帮助信息并退出"`
 	GenConfigFile      bool `long:"gen-config-file" description:"生成默认配置文件于 config.ini 并退出"`

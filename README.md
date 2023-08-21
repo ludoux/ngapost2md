@@ -33,8 +33,8 @@ windows
 使用: ngapost2md tid [--force-no-check-update] [--dump-update-info]
 选项与参数说明: 
 tid: 待下载的帖子 tid 号
---force-no-check-update      在编译时间后的不少于 60 天内，不检测版本更新。
---dump-update-info           当检测到新版本时，将版本信息原始文件写入 NEED_UPDATE 文件。
+--force-no-check-update      在编译时间后的不少于 60 天内，不检测版本更新
+--dump-update-info           当检测到新版本时，将版本信息原始文件写入 NEED_UPDATE 文件
 
 ngapost2md -v, --version     显示版本信息并退出
 ngapost2md -h, --help        显示此帮助信息并退出
