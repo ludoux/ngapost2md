@@ -7,12 +7,12 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/') #在打tag时候触发
     runs-on: ubuntu-latest
     steps:
-    - name: Set timezone
-      uses: szenius/set-timezone@v1.2
-      with:
-        timezoneLinux: "Asia/Shanghai"
-        timezoneMacos: "Asia/Shanghai"
-        timezoneWindows: "China Standard Time"
+      - name: Set timezone
+        uses: szenius/set-timezone@v1.2
+        with:
+          timezoneLinux: "Asia/Shanghai"
+          timezoneMacos: "Asia/Shanghai"
+          timezoneWindows: "China Standard Time"
 
       - name: Checkout
         uses: actions/checkout@v3
@@ -104,6 +104,6 @@ jobs:
         goarch: ${{ matrix.goarch }}
         md5sum: FALSE
         extra_files: LICENSE README.md assets/* #将这些文件一并打包
-        ldflags: -X "github.com/ludoux/ngapost2md/nga.DEBUG_MODE=0" -X "github.com/ludoux/ngapost2md/nga.BUILD_TS==${{ env.BUILD_TS }}" -X github.com/ludoux/ngapost2md/nga.GIT_REF=${{ github.ref }} -X github.com/ludoux/ngapost2md/nga.GIT_HASH=${{ github.sha }}
+        ldflags: -X "github.com/ludoux/ngapost2md/nga.DEBUG_MODE=0" -X "github.com/ludoux/ngapost2md/nga.BUILD_TS=${{ env.BUILD_TS }}" -X github.com/ludoux/ngapost2md/nga.GIT_REF=${{ github.ref }} -X github.com/ludoux/ngapost2md/nga.GIT_HASH=${{ github.sha }}
         overwrite: TRUE #若已有附件则覆写
         asset_name: ngapost2md-NEO_${{ steps.tag.outputs.tag }}-${{ matrix.goos }}-${{ matrix.goarch }}
