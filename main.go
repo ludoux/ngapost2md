@@ -90,36 +90,37 @@ func main() {
 		fmt.Printf("opts: %+v ; args: %v\n", opts, args)
 		fmt.Println("==debug mode===")
 	}
-
-	//DEBUG_MODE不为1时(不是DEBUG_MODE)情况下，未有 ForceNoCheckUpdate 时检测更新
-	if nga.DEBUG_MODE == "1" {
-		fmt.Println("==debug mode===")
-		fmt.Println("DEBUG MODE 下恒不检查更新")
-		fmt.Println("==debug mode===")
-	} else {
-		if !opts.ForceNoCheckUpdate {
-			checkUpdate(opts.DumpUpdateInfo)
+	fmt.Println("此版本永久禁用检查更新。请手动前往 GitHub 项目主页查看，谢谢。")
+	/*
+		//DEBUG_MODE不为1时(不是DEBUG_MODE)情况下，未有 ForceNoCheckUpdate 时检测更新
+		if nga.DEBUG_MODE == "1" {
+			fmt.Println("==debug mode===")
+			fmt.Println("DEBUG MODE 下恒不检查更新")
+			fmt.Println("==debug mode===")
 		} else {
-			//如果有这个标，在大于指定天数后也要检查更新
-			curTs := time.Now().Local().Unix()
-			builtTs, err := cast.ToInt64E(nga.BUILD_TS)
-			if err != nil {
-				log.Fatalln("BUILD_TS", nga.BUILD_TS, "无法转为数字，可能编译时 ldflags 有误")
-			}
-
-			if curTs < builtTs {
-				fmt.Println("由于本地时间有误，仍将检查更新。")
-				checkUpdate(opts.DumpUpdateInfo)
-			} else if curTs-builtTs > 61*86400 {
-				//61天
-				fmt.Println("距离此版本编译时间已过去", (curTs-builtTs)/86400, "天，仍将检查更新。")
+			if !opts.ForceNoCheckUpdate {
 				checkUpdate(opts.DumpUpdateInfo)
 			} else {
-				fmt.Println("由于使用了 --force-no-check-update 标志，且距离编译时间仍在时限内，本次不检查更新。距离此版本编译时间已过", (curTs-builtTs)/86400, "天")
+				//如果有这个标，在大于指定天数后也要检查更新
+				curTs := time.Now().Local().Unix()
+				builtTs, err := cast.ToInt64E(nga.BUILD_TS)
+				if err != nil {
+					log.Fatalln("BUILD_TS", nga.BUILD_TS, "无法转为数字，可能编译时 ldflags 有误")
+				}
+
+				if curTs < builtTs {
+					fmt.Println("由于本地时间有误，仍将检查更新。")
+					checkUpdate(opts.DumpUpdateInfo)
+				} else if curTs-builtTs > 61*86400 {
+					//61天
+					fmt.Println("距离此版本编译时间已过去", (curTs-builtTs)/86400, "天，仍将检查更新。")
+					checkUpdate(opts.DumpUpdateInfo)
+				} else {
+					fmt.Println("由于使用了 --force-no-check-update 标志，且距离编译时间仍在时限内，本次不检查更新。距离此版本编译时间已过", (curTs-builtTs)/86400, "天")
+				}
 			}
 		}
-	}
-
+	*/
 	// 检查并按需更新配置文件
 	cfg, err := config.GetConfigAutoUpdate()
 	if err != nil {
