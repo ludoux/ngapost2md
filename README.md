@@ -30,14 +30,12 @@ windows
 ```
 > ./ngapost2md -h
 
-使用: ngapost2md tid [--force-no-check-update] [--dump-update-info]
+使用: ngapost2md tid
 选项与参数说明: 
 tid: 待下载的帖子 tid 号
---force-no-check-update      在编译时间后的不少于 60 天内，不检测版本更新
---dump-update-info           当检测到新版本时，将版本信息原始文件写入 NEED_UPDATE 文件
-
 ngapost2md -v, --version     显示版本信息并退出
 ngapost2md -h, --help        显示此帮助信息并退出
+ngapost2md -u, --update      检查最新版本
 ngapost2md --gen-config-file 生成默认配置文件于 config.ini 并退出
 ```
 
