@@ -1,39 +1,46 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"log"
-	"os"
-	"strings"
-	"time"
-
 	"github.com/imroc/req/v3"
 	"github.com/jessevdk/go-flags"
 	"github.com/ludoux/ngapost2md/config"
 	"github.com/ludoux/ngapost2md/nga"
 	"github.com/spf13/cast"
+	"log"
+	"os"
+	"strings"
+	"time"
 )
 
 type Option struct {
-	ForceNoCheckUpdate bool `long:"force-no-check-update" description:"在编译时间后的不少于 60 天内，不检测版本更新"`
-	DumpUpdateInfo     bool `long:"dump-update-info" description:"当检测到新版本时，将版本信息原始文件写入 NEED_UPDATE 文件"`
-	Version            bool `short:"v" long:"version" description:"显示版本信息并退出"`
-	Help               bool `short:"h" long:"help" description:"显示此帮助信息并退出"`
-	GenConfigFile      bool `long:"gen-config-file" description:"生成默认配置文件于 config.ini 并退出"`
+	Version       bool `short:"v" long:"version" description:"显示版本信息并退出"`
+	Help          bool `short:"h" long:"help" description:"显示此帮助信息并退出"`
+	GenConfigFile bool `long:"gen-config-file" description:"生成默认配置文件于 config.ini 并退出"`
+	Update        bool `short:"u" long:"update" description:"检查最新版本"`
 }
 
-func checkUpdate(dump bool) {
-	resp, _ := req.C().R().Get("https://gitee.com/ludoux/check-update/raw/master/ngapost2md/version_neo.txt")
-	//版本更新配置文件改为 DO_NOT_CHECK ，软件则不会强制使用最新版本
-	if resp.String() != nga.VERSION && resp.String() != "DO_NOT_CHECK" {
-		if dump {
-			f, _ := os.OpenFile("NEED_UPDATE", os.O_CREATE|os.O_WRONLY, 0666)
-			_, _ = f.Write(resp.Bytes())
-			defer f.Close()
-		}
-		log.Printf("目前版本: %s 最新版本: %s", nga.VERSION, resp.String())
-		log.Fatalln("请去 GitHub Releases 页面下载最新版本。软件即将退出……")
+// 检查更新，解析json数据
+type Repo struct {
+	Tag_name string `json:"tag_name"` // 最新版本号
+	Body     string `json:"body"`     // 更新信息为markdown格式
+}
+
+func checkUpdate() {
+	resp, _ := req.C().R().Get("https://api.github.com/repos/ludoux/ngapost2md/releases/latest")
+
+	// 读取最新版本号
+	var repo Repo
+	err := json.Unmarshal([]byte(resp.String()), &repo)
+	if err != nil {
+		fmt.Println("解析json数据失败:", err)
 	}
+
+	// 输出信息
+	log.Printf("目前版本: %s 最新版本: %s", nga.VERSION, repo.Tag_name)
+	log.Fatalln("请去 GitHub Releases 页面下载最新版本。软件即将退出……")
+
 }
 
 func main() {
@@ -59,16 +66,17 @@ func main() {
 		log.Println("导出默认配置文件 config.ini 成功。")
 		os.Exit(0)
 	} else if opts.Help {
-		fmt.Println("使用: ngapost2md tid [--force-no-check-update] [--dump-update-info]")
+		fmt.Println("使用: ngapost2md tid")
 		fmt.Println("选项与参数说明: ")
 		fmt.Println("tid: 待下载的帖子 tid 号")
-		fmt.Println("--force-no-check-update     ", parser.FindOptionByLongName("force-no-check-update").Description)
-		fmt.Println("--dump-update-info          ", parser.FindOptionByLongName("dump-update-info").Description)
 		fmt.Println("")
 		fmt.Println("ngapost2md -v, --version    ", parser.FindOptionByLongName("version").Description)
 		fmt.Println("ngapost2md -h, --help       ", parser.FindOptionByLongName("help").Description)
+		fmt.Println("ngapost2md -u, --update     ", parser.FindOptionByLongName("update").Description)
 		fmt.Println("ngapost2md --gen-config-file", parser.FindOptionByLongName("gen-config-file").Description)
 		os.Exit(0)
+	} else if opts.Update {
+		checkUpdate()
 	}
 
 	var tid int
@@ -90,37 +98,7 @@ func main() {
 		fmt.Printf("opts: %+v ; args: %v\n", opts, args)
 		fmt.Println("==debug mode===")
 	}
-	fmt.Println("此版本永久禁用检查更新。请手动前往 GitHub 项目主页查看，谢谢。")
-	/*
-		//DEBUG_MODE不为1时(不是DEBUG_MODE)情况下，未有 ForceNoCheckUpdate 时检测更新
-		if nga.DEBUG_MODE == "1" {
-			fmt.Println("==debug mode===")
-			fmt.Println("DEBUG MODE 下恒不检查更新")
-			fmt.Println("==debug mode===")
-		} else {
-			if !opts.ForceNoCheckUpdate {
-				checkUpdate(opts.DumpUpdateInfo)
-			} else {
-				//如果有这个标，在大于指定天数后也要检查更新
-				curTs := time.Now().Local().Unix()
-				builtTs, err := cast.ToInt64E(nga.BUILD_TS)
-				if err != nil {
-					log.Fatalln("BUILD_TS", nga.BUILD_TS, "无法转为数字，可能编译时 ldflags 有误")
-				}
 
-				if curTs < builtTs {
-					fmt.Println("由于本地时间有误，仍将检查更新。")
-					checkUpdate(opts.DumpUpdateInfo)
-				} else if curTs-builtTs > 61*86400 {
-					//61天
-					fmt.Println("距离此版本编译时间已过去", (curTs-builtTs)/86400, "天，仍将检查更新。")
-					checkUpdate(opts.DumpUpdateInfo)
-				} else {
-					fmt.Println("由于使用了 --force-no-check-update 标志，且距离编译时间仍在时限内，本次不检查更新。距离此版本编译时间已过", (curTs-builtTs)/86400, "天")
-				}
-			}
-		}
-	*/
 	// 检查并按需更新配置文件
 	cfg, err := config.GetConfigAutoUpdate()
 	if err != nil {
