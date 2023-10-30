@@ -102,6 +102,7 @@ jobs:
         release_tag: ${{steps.tag.outputs.tag}}
         goos: ${{ matrix.goos }}
         goarch: ${{ matrix.goarch }}
+        goversion: 1.21
         md5sum: FALSE
         extra_files: LICENSE README.md assets/* #将这些文件一并打包
         ldflags: -X "github.com/ludoux/ngapost2md/nga.DEBUG_MODE=0" -X "github.com/ludoux/ngapost2md/nga.BUILD_TS=${{ env.BUILD_TS }}" -X github.com/ludoux/ngapost2md/nga.GIT_REF=${{ github.ref }} -X github.com/ludoux/ngapost2md/nga.GIT_HASH=${{ github.sha }}
