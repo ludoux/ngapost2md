@@ -37,7 +37,7 @@ var (
 
 // 这里配置文件和传参都没法改
 var (
-	VERSION  = "1.5.1"      //需要手动改
+	VERSION  = "1.5.2"      //需要手动改
 	BUILD_TS = "1691664141" //无需，GitHub actions会自动填写
 	GIT_REF  = ""           //无需，GitHub actions会自动填写
 	GIT_HASH = ""           //无需，GitHub actions会自动填写
@@ -457,7 +457,13 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 		for i := 0; i < quoteCount; i++ {
 			//最内层的quote下标
 			quoteStartIndex := strings.LastIndex(cont, "[quote]")
+			if quoteStartIndex < 0 {
+				break
+			}
 			quoteEndIndex := quoteStartIndex + strings.Index(cont[quoteStartIndex:], "[/quote]")
+			if quoteEndIndex < 0 || quoteStartIndex >= quoteEndIndex+8 {
+				break
+			}
 			clip := cont[quoteStartIndex : quoteEndIndex+8]
 
 			reg_str := `(?s)\[quote\]\[pid=(\d+?),.+?Post by \[uid.*?\](.+)\[\/uid\].*?\((\d{4}.+?)\):</b>(.+?)\[/quote\]((?:\n){0,2})`
@@ -562,6 +568,11 @@ func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
 	wg.Wait()
 	elapsedTime := time.Since(startTime) / time.Millisecond
 	log.Printf("修正楼层总耗时: %dms\n", elapsedTime)
+	// 如果为了调试取消并行的话，上述代码均注释，换成下面的
+	// for i := startFloor_i; i < len(tiezi.Floors); i++ {
+	// 	log.Printf("开始修正第 %02d 楼层", i)
+	// 	tiezi.fixContent(cast.ToInt(i))
+	// }
 
 }
 
