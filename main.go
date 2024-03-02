@@ -3,18 +3,20 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/imroc/req/v3"
 	"github.com/jessevdk/go-flags"
 	"github.com/ludoux/ngapost2md/config"
 	"github.com/ludoux/ngapost2md/nga"
 	"github.com/spf13/cast"
-	"log"
-	"os"
-	"strings"
-	"time"
 )
 
 type Option struct {
+	AuthorId      int  `long:"authorid" default:"0" description:"只下载此 authorid 的发言层"`
 	Version       bool `short:"v" long:"version" description:"显示版本信息并退出"`
 	Help          bool `short:"h" long:"help" description:"显示此帮助信息并退出"`
 	GenConfigFile bool `long:"gen-config-file" description:"生成默认配置文件于 config.ini 并退出"`
@@ -66,9 +68,10 @@ func main() {
 		log.Println("导出默认配置文件 config.ini 成功。")
 		os.Exit(0)
 	} else if opts.Help {
-		fmt.Println("使用: ngapost2md tid")
+		fmt.Println("使用: ngapost2md tid [--authorid aid]")
 		fmt.Println("选项与参数说明: ")
 		fmt.Println("tid: 待下载的帖子 tid 号")
+		fmt.Println("aid: 只看某用户 id 发言层，需配合 --authorid 参数")
 		fmt.Println("")
 		fmt.Println("ngapost2md -v, --version    ", parser.FindOptionByLongName("version").Description)
 		fmt.Println("ngapost2md -h, --help       ", parser.FindOptionByLongName("help").Description)
@@ -115,25 +118,25 @@ func main() {
 	nga.BASE_URL = cfg.Section("network").Key("base_url").String()
 	nga.UA = cfg.Section("network").Key("ua").String()
 	//默认线程数为2,仅支持1~3
-	nga.THREAD_COUNT = cfg.Section("network").Key("thread").InInt(2, []int{1, 2, 3})
-	nga.PAGE_DOWNLOAD_LIMIT = cfg.Section("network").Key("page_download_limit").RangeInt(100, -1, 100)
-	nga.GET_IP_LOCATION = cfg.Section("post").Key("get_ip_location").MustBool()
-	nga.ENHANCE_ORI_REPLY = cfg.Section("post").Key("enhance_ori_reply").MustBool()
-	nga.USE_LOCAL_SMILE_PIC = cfg.Section("post").Key("use_local_smile_pic").MustBool()
-	nga.LOCAL_SMILE_PIC_PATH = cfg.Section("post").Key("local_smile_pic_path").String()
-	nga.USE_TITLE_AS_FOLDER_NAME = cfg.Section("post").Key("use_title_as_folder_name").MustBool()
-	nga.USE_TITLE_AS_MD_FILE_NAME = cfg.Section("post").Key("use_title_as_md_file_name").MustBool()
+	nga.CFGFILE_THREAD_COUNT = cfg.Section("network").Key("thread").InInt(2, []int{1, 2, 3})
+	nga.CFGFILE_PAGE_DOWNLOAD_LIMIT = cfg.Section("network").Key("page_download_limit").RangeInt(100, -1, 100)
+	nga.CFGFILE_GET_IP_LOCATION = cfg.Section("post").Key("get_ip_location").MustBool()
+	nga.CFGFILE_ENHANCE_ORI_REPLY = cfg.Section("post").Key("enhance_ori_reply").MustBool()
+	nga.CFGFILE_USE_LOCAL_SMILE_PIC = cfg.Section("post").Key("use_local_smile_pic").MustBool()
+	nga.CFGFILE_LOCAL_SMILE_PIC_PATH = cfg.Section("post").Key("local_smile_pic_path").String()
+	nga.CFGFILE_USE_TITLE_AS_FOLDER_NAME = cfg.Section("post").Key("use_title_as_folder_name").MustBool()
+	nga.CFGFILE_USE_TITLE_AS_MD_FILE_NAME = cfg.Section("post").Key("use_title_as_md_file_name").MustBool()
 	nga.Client = nga.NewNgaClient()
 
 	tie := nga.Tiezi{}
 
-	path := nga.FindFolderNameByTid(tid)
+	path := nga.FindFolderNameByTid(tid, opts.AuthorId)
 	if path != "" {
 		log.Printf("本地存在此 tid (%s) 文件夹，追加最新更改。", path)
-		tie.InitFromLocal(tid)
+		tie.InitFromLocal(tid, opts.AuthorId)
 
 	} else {
-		tie.InitFromWeb(tid)
+		tie.InitFromWeb(tid, opts.AuthorId)
 	}
 
 	tie.Download()

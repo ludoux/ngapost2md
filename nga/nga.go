@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
+	"github.com/imroc/req/v3"
 	"github.com/panjf2000/ants/v2"
 	"github.com/spf13/cast"
 	"gopkg.in/ini.v1"
@@ -21,14 +22,14 @@ import (
 
 // 这里是配置文件可以改的
 var (
-	THREAD_COUNT              = 2
-	GET_IP_LOCATION           = false //	获取ip地址
-	ENHANCE_ORI_REPLY         = false //	功能见 #35
-	PAGE_DOWNLOAD_LIMIT       = 100   //	限制单次下载的页数 #56
-	USE_TITLE_AS_FOLDER_NAME  = false
-	USE_TITLE_AS_MD_FILE_NAME = false
-	USE_LOCAL_SMILE_PIC       = false       // 使用本地表情 #58
-	LOCAL_SMILE_PIC_PATH      = "../smile/" //本地表情路径 #58
+	CFGFILE_THREAD_COUNT              = 2
+	CFGFILE_GET_IP_LOCATION           = false //	获取ip地址
+	CFGFILE_ENHANCE_ORI_REPLY         = false //	功能见 #35
+	CFGFILE_PAGE_DOWNLOAD_LIMIT       = 100   //	限制单次下载的页数 #56
+	CFGFILE_USE_TITLE_AS_FOLDER_NAME  = false
+	CFGFILE_USE_TITLE_AS_MD_FILE_NAME = false
+	CFGFILE_USE_LOCAL_SMILE_PIC       = false       // 使用本地表情 #58
+	CFGFILE_LOCAL_SMILE_PIC_PATH      = "../smile/" //本地表情路径 #58
 
 )
 
@@ -74,6 +75,7 @@ type Floor struct {
 type Floors []Floor
 type Tiezi struct {
 	Tid             int
+	AuthorId        int //这个是用户传入的希望仅下载某用户id的发言贴参数
 	Title           string
 	TitleFolderSafe string
 	Catelogy        string
@@ -157,10 +159,20 @@ func (it *Floors) analyze(resp []byte, isComments bool) {
  * @return {*}
  */
 func (tiezi *Tiezi) page(page int) {
-	resp, err := Client.R().SetFormData(map[string]string{
-		"page": cast.ToString(page),
-		"tid":  cast.ToString(tiezi.Tid),
-	}).Post("app_api.php?__lib=post&__act=list")
+	var resp *req.Response
+	var err error
+	if tiezi.AuthorId > 0 {
+		resp, err = Client.R().SetFormData(map[string]string{
+			"page":     cast.ToString(page),
+			"tid":      cast.ToString(tiezi.Tid),
+			"authorid": cast.ToString(tiezi.AuthorId),
+		}).Post("app_api.php?__lib=post&__act=list")
+	} else {
+		resp, err = Client.R().SetFormData(map[string]string{
+			"page": cast.ToString(page),
+			"tid":  cast.ToString(tiezi.Tid),
+		}).Post("app_api.php?__lib=post&__act=list")
+	}
 	if err != nil {
 		log.Println(err.Error())
 	}
@@ -190,8 +202,8 @@ func (tiezi *Tiezi) page(page int) {
 		//总页数
 		value_int, _ = jsonparser.GetInt(resp.Bytes(), "totalPage")
 		tiezi.WebMaxPage = cast.ToInt(value_int)
-		if PAGE_DOWNLOAD_LIMIT > 0 && tiezi.WebMaxPage > (tiezi.LocalMaxPage+PAGE_DOWNLOAD_LIMIT) {
-			tiezi.WebMaxPage = tiezi.LocalMaxPage + PAGE_DOWNLOAD_LIMIT
+		if CFGFILE_PAGE_DOWNLOAD_LIMIT > 0 && tiezi.WebMaxPage > (tiezi.LocalMaxPage+CFGFILE_PAGE_DOWNLOAD_LIMIT) {
+			tiezi.WebMaxPage = tiezi.LocalMaxPage + CFGFILE_PAGE_DOWNLOAD_LIMIT
 			page_download_limit_triggered = true
 		}
 
@@ -220,8 +232,8 @@ func (tiezi *Tiezi) page(page int) {
  * @param {int} tid 帖子tid
  * @return {*}
  */
-func (tiezi *Tiezi) InitFromWeb(tid int) {
-	tiezi.init(tid)
+func (tiezi *Tiezi) InitFromWeb(tid int, authorId int) {
+	tiezi.init(tid, authorId)
 	tiezi.Version = VERSION
 	tiezi.Assets = map[string]string{}
 	tiezi.LocalMaxPage = 1
@@ -235,8 +247,8 @@ func (tiezi *Tiezi) InitFromWeb(tid int) {
  * @param {int} tid 帖子tid
  * @return {*}
  */
-func (tiezi *Tiezi) InitFromLocal(tid int) {
-	tiezi.init(tid)
+func (tiezi *Tiezi) InitFromLocal(tid int, authorId int) {
+	tiezi.init(tid, authorId)
 	tiezi.Version = VERSION
 
 	checkFileExistence := func(fileName string) {
@@ -244,7 +256,7 @@ func (tiezi *Tiezi) InitFromLocal(tid int) {
 			log.Fatalln(fileName, "文件丢失，软件将退出。")
 		}
 	}
-	folderName := FindFolderNameByTid(tid)
+	folderName := FindFolderNameByTid(tid, authorId)
 	if folderName == "" {
 		log.Fatalln("找不到本地 tid 文件夹，软件将退出。")
 	}
@@ -268,13 +280,13 @@ func (tiezi *Tiezi) InitFromLocal(tid int) {
 }
 
 /**
- * @description: 初始化 Tiezi。主要是创建文件夹
+ * @description: 初始化 Tiezi。
  * @param {int} tid 帖子tid
- * @param {bool} crateDict 是否创建文件夹
  * @return {*}
  */
-func (tiezi *Tiezi) init(tid int) {
+func (tiezi *Tiezi) init(tid int, authorId int) {
 	tiezi.Tid = tid
+	tiezi.AuthorId = authorId
 }
 
 /**
@@ -311,7 +323,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 	//循环尾部有判断是否有comments且是否进去的操作，请注意
 	for {
 		//假如要获取IP位置则在此处获取
-		if GET_IP_LOCATION {
+		if CFGFILE_GET_IP_LOCATION {
 			resp, err := Client.R().SetFormData(map[string]string{
 				"uid": cast.ToString(floor.UserId),
 			}).Post("nuke.php?__lib=ucp&__act=get&__output=8")
@@ -394,7 +406,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 		//表情
 		re = regexp.MustCompile(`\[s\:.+?\:.+?\]`)
 		for _, it := range re.FindAllString(cont, -1) {
-			if !USE_LOCAL_SMILE_PIC {
+			if !CFGFILE_USE_LOCAL_SMILE_PIC {
 				cont = strings.ReplaceAll(cont, it, `![`+strings.Split(it, `:`)[2]+`(https://img4.nga.178.com/ngabbs/post/smile/`+strings.ReplaceAll(getSmile(it), `"`, ``)+`)`)
 			} else {
 				smile_name := strings.Split(it, `:`)[1] + strings.TrimRight(strings.Split(it, `:`)[2], "]")
@@ -403,7 +415,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 				} else {
 					smile_name = smile_name + ".png"
 				}
-				prefix := LOCAL_SMILE_PIC_PATH
+				prefix := CFGFILE_LOCAL_SMILE_PIC_PATH
 				if !strings.HasSuffix(prefix, "/") {
 					prefix = prefix + "/"
 				}
@@ -518,7 +530,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 				quoteAuthor = anony(quoteAuthor)
 			}
 			replyedText := ":"
-			if ENHANCE_ORI_REPLY {
+			if CFGFILE_ENHANCE_ORI_REPLY {
 				replyedFloor := tiezi.findFloorByPid(cast.ToInt(quotePid))
 				if replyedFloor != nil {
 					replyedText = "说:\n>" + strings.ReplaceAll(replyedFloor.Content, "\n", "\n>")
@@ -550,7 +562,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
 
 	var wg sync.WaitGroup
-	p, _ := ants.NewPoolWithFunc(THREAD_COUNT, func(floor_i interface{}) {
+	p, _ := ants.NewPoolWithFunc(CFGFILE_THREAD_COUNT, func(floor_i interface{}) {
 		if tiezi.Floors[cast.ToInt(floor_i)].Lou != -1 {
 			responseChannel <- fmt.Sprintf("开始修正第 %02d 楼层", cast.ToInt(floor_i))
 			tiezi.fixContent(cast.ToInt(floor_i))
@@ -588,7 +600,7 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 	mdFilePath := filepath.Join(folder, "post.md")
 	if _, err := os.Stat(mdFilePath); os.IsNotExist(err) {
 		//post.md不存在，判断是否需要个性化
-		if USE_TITLE_AS_MD_FILE_NAME {
+		if CFGFILE_USE_TITLE_AS_MD_FILE_NAME {
 			mdName := fmt.Sprintf("%s.md", tiezi.TitleFolderSafe)
 			mdFilePath = filepath.Join(folder, mdName)
 		}
@@ -614,7 +626,11 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 		}
 
 		if floor.Pid == 0 {
-			_, _ = f.WriteString(fmt.Sprintf("### %s\n\nMade by ngapost2md (c) ludoux [GitHub Repo](https://github.com/ludoux/ngapost2md)\n\n", tiezi.Title))
+			var authorIdOptText = ""
+			if tiezi.AuthorId > 0 {
+				authorIdOptText = fmt.Sprintf("-只看 %d", tiezi.AuthorId)
+			}
+			_, _ = f.WriteString(fmt.Sprintf("### %s%s\n\nMade by ngapost2md (c) ludoux [GitHub Repo](https://github.com/ludoux/ngapost2md)\n\n", tiezi.Title, authorIdOptText))
 		}
 
 		if floor.Pid == 0 && len(tiezi.HotPosts) > 0 {
@@ -685,14 +701,22 @@ func responseController() {
 
 // 会首先调用FindFolderNameByTid，确定本地没有相关文件夹再返回指定格式文件名。否则返回本地已有文件名
 func (tiezi *Tiezi) GetNeededFolderName() string {
-	already := FindFolderNameByTid(tiezi.Tid)
+	already := FindFolderNameByTid(tiezi.Tid, tiezi.AuthorId)
 	if already != "" {
 		return already
 	}
-	if USE_TITLE_AS_FOLDER_NAME {
-		return fmt.Sprintf("%d-%s", tiezi.Tid, tiezi.TitleFolderSafe)
+	if CFGFILE_USE_TITLE_AS_FOLDER_NAME {
+		if tiezi.AuthorId > 0 {
+			return fmt.Sprintf("%d(%d)-%s", tiezi.Tid, tiezi.AuthorId, tiezi.TitleFolderSafe)
+		} else {
+			return fmt.Sprintf("%d-%s", tiezi.Tid, tiezi.TitleFolderSafe)
+		}
 	} else {
-		return cast.ToString(tiezi.Tid)
+		if tiezi.AuthorId > 0 {
+			return fmt.Sprintf("%d(%d)", tiezi.Tid, tiezi.AuthorId)
+		} else {
+			return cast.ToString(tiezi.Tid)
+		}
 	}
 }
 
@@ -726,7 +750,7 @@ func (tiezi *Tiezi) SaveAssetsMap() {
 func (tiezi *Tiezi) Download() {
 	if tiezi.Tid != 0 {
 		var wg sync.WaitGroup
-		p, _ := ants.NewPoolWithFunc(THREAD_COUNT, func(page interface{}) {
+		p, _ := ants.NewPoolWithFunc(CFGFILE_THREAD_COUNT, func(page interface{}) {
 			time.Sleep(time.Millisecond * time.Duration(DELAY_MS))
 			responseChannel <- fmt.Sprintf("下载第 %02d 页", page)
 			//1. 并行下载page

@@ -78,15 +78,27 @@ func ToSaveFilename(in string) string {
 }
 
 // 找不到时会直接返回 ""
-func FindFolderNameByTid(tid int) string {
-	fi, err := os.Stat(cast.ToString(tid))
+func FindFolderNameByTid(tid int, authorId int) string {
+	var folderName string
+	if authorId > 0 {
+		folderName = fmt.Sprintf("%d(%d)", tid, authorId)
+	} else {
+		folderName = cast.ToString(tid)
+	}
+	fi, err := os.Stat(folderName)
 	if err == nil && fi.IsDir() {
-		return cast.ToString(tid)
+		return folderName
 	} else if err != nil && !os.IsNotExist(err) {
 		log.Fatalln(err.Error())
+		return ""
 	}
 	//即不存在直接以 tid 命名的文件夹，接下来判断是否存在以 tid- 开头的文件夹
-	matches, err := filepath.Glob(fmt.Sprintf("./%d-*", tid))
+	if authorId > 0 {
+		folderName = fmt.Sprintf("./%d(%d)-*", tid, authorId)
+	} else {
+		folderName = fmt.Sprintf("./%d-*", tid)
+	}
+	matches, err := filepath.Glob(folderName)
 	if err != nil {
 		log.Fatalln(err.Error())
 		return ""
@@ -94,7 +106,7 @@ func FindFolderNameByTid(tid int) string {
 	if len(matches) == 1 {
 		return matches[0]
 	} else if len(matches) > 1 {
-		log.Fatalln("有多个文件夹匹配:", fmt.Sprintf("./%d-*", tid))
+		log.Fatalln("有多个文件夹匹配:", folderName)
 		return ""
 	}
 	return ""
