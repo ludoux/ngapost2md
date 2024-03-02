@@ -18,14 +18,15 @@ function Get-Latest-Ngapost2md ($Arch) {
     $filename = $json.assets | Where-Object { $_.name -Match "windows-$Arch" } | Select-Object -ExpandProperty name
     $size = $json.assets | Where-Object { $_.name -Match "windows-$Arch" } | Select-Object -ExpandProperty size
     $title = $json.name
+    $tag = $json.tag_name
     $date = $json.created_at
     $body = $json.body
     $download_link = $json.assets | Where-Object { $_.name -Match "windows-$Arch" } | Select-Object -ExpandProperty browser_download_url
     if ($filename -is [array]) {
-        return $title, $filename[0], $download_link[0]
+        return $title, $tag, $filename[0], $download_link[0]
     }
     else {
-        return $title, $date, $body, $filename, $download_link, $size
+        return $title, $tag, $date, $body, $filename, $download_link, $size
     }
 }
 
@@ -59,10 +60,10 @@ function Check-And-Download-And-Unzip() {
     Write-Host "You are using ngapost2md" $local_version ". Start checking latest version from GitHub release page..."
 
     # get release info
-    $r_title, $r_date, $r_body, $r_filename, $r_link, $r_filesize = Get-Latest-Ngapost2md $arch
+    $r_title, $r_tag, $r_date, $r_body, $r_filename, $r_link, $r_filesize = Get-Latest-Ngapost2md $arch
     
     # check if using the latest version
-    if ($r_title -cmatch ("\[",$local_version,"\]" -join "")) {
+    if ($r_tag -cmatch $local_version) {
         if (Test-Path $update_download_dir) {
             Remove-Item -Path $update_download_dir -Recurse -ErrorAction Stop
         }
@@ -81,7 +82,7 @@ function Check-And-Download-And-Unzip() {
     }
     
     # print new version info
-    Write-Host "New version (" $r_title ") found. Released at" $r_date
+    Write-Host "New version (" $r_title " tag:" $r_tag ") found. Released at" $r_date
     Write-Host  "You can view changelog at https://github.com/ludoux/ngapost2md/releases/latest"
     
     # download it
