@@ -5,20 +5,19 @@ import (
 	"fmt"
 	"github.com/imroc/req/v3"
 	"github.com/jessevdk/go-flags"
-	"github.com/ludoux/ngapost2md/config"
 	"github.com/ludoux/ngapost2md/nga"
 	"github.com/spf13/cast"
 	"log"
+	"math"
 	"os"
 	"strings"
 	"time"
 )
 
 type Option struct {
-	Version       bool `short:"v" long:"version" description:"显示版本信息并退出"`
-	Help          bool `short:"h" long:"help" description:"显示此帮助信息并退出"`
-	GenConfigFile bool `long:"gen-config-file" description:"生成默认配置文件于 config.ini 并退出"`
-	Update        bool `short:"u" long:"update" description:"检查最新版本"`
+	Version bool `short:"v" long:"version" description:"显示版本信息并退出"`
+	Help    bool `short:"h" long:"help" description:"显示此帮助信息并退出"`
+	Update  bool `short:"u" long:"update" description:"检查最新版本"`
 }
 
 // 检查更新，解析json数据
@@ -58,13 +57,6 @@ func main() {
 		fmt.Println("Git_Ref:", nga.GIT_REF)
 		fmt.Println("Git_Hash:", nga.GIT_HASH)
 		os.Exit(0)
-	} else if opts.GenConfigFile {
-		err := config.SaveDefaultConfigFile()
-		if err != nil {
-			log.Fatalln(err.Error())
-		}
-		log.Println("导出默认配置文件 config.ini 成功。")
-		os.Exit(0)
 	} else if opts.Help {
 		fmt.Println("使用: ngapost2md tid")
 		fmt.Println("选项与参数说明: ")
@@ -73,7 +65,6 @@ func main() {
 		fmt.Println("ngapost2md -v, --version    ", parser.FindOptionByLongName("version").Description)
 		fmt.Println("ngapost2md -h, --help       ", parser.FindOptionByLongName("help").Description)
 		fmt.Println("ngapost2md -u, --update     ", parser.FindOptionByLongName("update").Description)
-		fmt.Println("ngapost2md --gen-config-file", parser.FindOptionByLongName("gen-config-file").Description)
 		os.Exit(0)
 	} else if opts.Update {
 		checkUpdate()
@@ -100,29 +91,32 @@ func main() {
 	}
 
 	// 检查并按需更新配置文件
-	cfg, err := config.GetConfigAutoUpdate()
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
+	cfg := nga.Read_cfg()
 
 	//Cookie
-	var ngaPassportUid = cfg.Section("network").Key("ngaPassportUid").String()
-	var ngaPassportCid = cfg.Section("network").Key("ngaPassportCid").String()
+	var ngaPassportUid = cfg.Network.Uid
+	var ngaPassportCid = cfg.Network.Cid
 	var cookie strings.Builder
 	cookie.WriteString("ngaPassportUid=" + ngaPassportUid + ";" + "ngaPassportCid=" + ngaPassportCid)
 	nga.COOKIE = cookie.String()
 
-	nga.BASE_URL = cfg.Section("network").Key("base_url").String()
-	nga.UA = cfg.Section("network").Key("ua").String()
+	nga.BASE_URL = cfg.Network.Base_url
+
+	// 如果配置中的Ua留空就使用默认Ua
+	if cfg.Network.Ua == "" {
+		nga.UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+	} else {
+		nga.UA = cfg.Network.Ua
+	}
 	//默认线程数为2,仅支持1~3
-	nga.THREAD_COUNT = cfg.Section("network").Key("thread").InInt(2, []int{1, 2, 3})
-	nga.PAGE_DOWNLOAD_LIMIT = cfg.Section("network").Key("page_download_limit").RangeInt(100, -1, 100)
-	nga.GET_IP_LOCATION = cfg.Section("post").Key("get_ip_location").MustBool()
-	nga.ENHANCE_ORI_REPLY = cfg.Section("post").Key("enhance_ori_reply").MustBool()
-	nga.USE_LOCAL_SMILE_PIC = cfg.Section("post").Key("use_local_smile_pic").MustBool()
-	nga.LOCAL_SMILE_PIC_PATH = cfg.Section("post").Key("local_smile_pic_path").String()
-	nga.USE_TITLE_AS_FOLDER_NAME = cfg.Section("post").Key("use_title_as_folder_name").MustBool()
-	nga.USE_TITLE_AS_MD_FILE_NAME = cfg.Section("post").Key("use_title_as_md_file_name").MustBool()
+	nga.THREAD_COUNT = int(math.Max(1, math.Min(float64(cfg.Network.Thread), 3)))
+	nga.PAGE_DOWNLOAD_LIMIT = int(math.Max(-1, math.Min(float64(cfg.Network.Page_limit), 100)))
+	nga.GET_IP_LOCATION = cfg.Post.Ip
+	nga.ENHANCE_ORI_REPLY = cfg.Post.Reply
+	nga.USE_LOCAL_SMILE_PIC = cfg.Post.Local_smile
+	nga.LOCAL_SMILE_PIC_PATH = cfg.Post.Local_smile_path
+	nga.USE_TITLE_AS_FOLDER_NAME = cfg.Post.Title_dir_name
+	nga.USE_TITLE_AS_MD_FILE_NAME = cfg.Post.Title_md_name
 	nga.Client = nga.NewNgaClient()
 
 	tie := nga.Tiezi{}
