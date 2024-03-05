@@ -20,8 +20,11 @@ require (
 	github.com/google/pprof v0.0.0-20240618054019-d3b898a103f8 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/klauspost/compress v1.17.9 // indirect
-	github.com/onsi/ginkgo/v2 v2.19.0 // indirect
+	github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab // indirect
+	github.com/klauspost/compress v1.17.4 // indirect
+	github.com/onsi/ginkgo/v2 v2.13.2 // indirect
+	github.com/orirawlings/persistent-cookiejar v0.3.2 // indirect
+	github.com/pelletier/go-toml/v2 v2.1.1 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
 	github.com/quic-go/quic-go v0.45.0 // indirect
 	github.com/refraction-networking/utls v1.6.6 // indirect
