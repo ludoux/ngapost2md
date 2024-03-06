@@ -38,6 +38,7 @@ aid: 只看某用户 id 发言层，需配合 --authorid 参数
 ngapost2md -v, --version     显示版本信息并退出
 ngapost2md -h, --help        显示此帮助信息并退出
 ngapost2md -u, --update      检查最新版本
+ngapost2md -g, --gen-config-file 生成默认配置文件于 config.ini 并退出
 ```
 
 ## 配置说明
