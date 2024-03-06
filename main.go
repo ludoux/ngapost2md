@@ -15,9 +15,10 @@ import (
 )
 
 type Option struct {
-	Version bool `short:"v" long:"version" description:"显示版本信息并退出"`
-	Help    bool `short:"h" long:"help" description:"显示此帮助信息并退出"`
-	Update  bool `short:"u" long:"update" description:"检查最新版本"`
+	Version       bool `short:"v" long:"version" description:"显示版本信息并退出"`
+	Help          bool `short:"h" long:"help" description:"显示此帮助信息并退出"`
+	Update        bool `short:"u" long:"update" description:"检查最新版本"`
+	GenConfigFile bool `short:"g" long:"gen-config-file" description:"生成默认配置文件于 config.ini 并退出"`
 }
 
 // 检查更新，解析json数据
@@ -57,6 +58,9 @@ func main() {
 		fmt.Println("Git_Ref:", nga.GIT_REF)
 		fmt.Println("Git_Hash:", nga.GIT_HASH)
 		os.Exit(0)
+	} else if opts.GenConfigFile {
+		nga.Gen_cfg()
+		os.Exit(0)
 	} else if opts.Help {
 		fmt.Println("使用: ngapost2md tid")
 		fmt.Println("选项与参数说明: ")
@@ -65,6 +69,7 @@ func main() {
 		fmt.Println("ngapost2md -v, --version    ", parser.FindOptionByLongName("version").Description)
 		fmt.Println("ngapost2md -h, --help       ", parser.FindOptionByLongName("help").Description)
 		fmt.Println("ngapost2md -u, --update     ", parser.FindOptionByLongName("update").Description)
+		fmt.Println("ngapost2md -u, --gen-config-file", parser.FindOptionByLongName("gen-config-file").Description)
 		os.Exit(0)
 	} else if opts.Update {
 		checkUpdate()
