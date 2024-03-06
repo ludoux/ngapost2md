@@ -26,6 +26,7 @@ require (
 	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/onsi/ginkgo/v2 v2.13.2 // indirect
 	github.com/orirawlings/persistent-cookiejar v0.3.2 // indirect
+	github.com/pelletier/go-toml/v2 v2.1.1 // indirect
 	github.com/quic-go/qpack v0.4.0 // indirect
 	github.com/quic-go/qtls-go1-18 v0.2.0 // indirect
 	github.com/quic-go/qtls-go1-19 v0.3.3 // indirect

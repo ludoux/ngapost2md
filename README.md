@@ -10,7 +10,7 @@ ngapost2md 是一个将 NGA 论坛帖子转换为 Markdown 格式的工具。它
 
 ## 使用说明
 1. 下载并解压发布版本的压缩包。
-2. 修改 config.ini 文件中的配置项，根据需要进行相应的修改，确保 `config.ini`  文件存在且与可执行文件在同一目录下（平级关系）。
+2. 修改 config.toml 文件中的配置项，根据需要进行相应的修改，确保 `config.toml`  文件存在且与可执行文件在同一目录下（平级关系）。
 3. 打开终端或命令提示符。
 4. 运行以下命令，并执行程序：
 
@@ -36,16 +36,15 @@ tid: 待下载的帖子 tid 号
 ngapost2md -v, --version     显示版本信息并退出
 ngapost2md -h, --help        显示此帮助信息并退出
 ngapost2md -u, --update      检查最新版本
-ngapost2md --gen-config-file 生成默认配置文件于 config.ini 并退出
+ngapost2md -g, --gen-config-file 生成默认配置文件于 config.ini 并退出
 ```
 
 ## 配置说明
 
-详见注释 [config.ini](https://github.com/ludoux/ngapost2md/blob/neo/assets/config.ini)
+详见注释 [config.toml](https://github.com/ludoux/ngapost2md/blob/neo/assets/config.toml)
 
-在 release 页面的打包文件中，config.ini 文件与主程序平级。假如需要生成新的默认配置文件，可使用 `--gen-config-file` 参数。此会覆盖 config.ini 为默认配置。
+在 release 页面的打包文件中，config.toml 文件与主程序平级。 
 
-**不要试图在 config.ini 内添加新条目或者增加、修改注释。软件每次启动都会舍弃此类外界变动并重新保存 config.ini 文件。**
 
 ## 注意事项
 

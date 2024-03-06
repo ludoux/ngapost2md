@@ -1,0 +1,31 @@
+[Version]
+# 软件版本信息。
+Version = '1.5.2'
+
+[Network]
+# 软件访问的nga域名。默认值 https://bbs.nga.cn
+Base_url = 'https://bbs.nga.cn'
+# 浏览器User-Agent，通常来说填写你常用浏览器的UA即可，留空则使用默认值
+Ua = ''
+# nga网站个人cookie项目
+Uid = ''
+# nga网站个人cookie项目
+Cid = ''
+# 网络并发数，提高理论上可以增加下载速度。仅支持1、2、3。若开启enhance_ori_reply，请将此值设定为1。默认值2
+Thread = 2
+# [#56]每次下载限制新下载的大约页数。到上限后需要重新运行程序再追加下载，如此直至全部下载成功。允许范围-1（含）至100（含）。值为0或-1时则不限制。默认值100（约100页）
+Page_limit = 100
+
+[Post]
+# [#44]是否查询用户基于IP的地理位置？若启用则会导致至高20倍于未启用的网络请求。默认值False（不启用）
+Ip = false
+# [#35]将被回复的楼层内容补充完整。开启此功能要求同步将thread线程数设置为1，否则可能会补充到未format的文本。默认值False（不启用）
+Reply = false
+# [#58]是否使用本地表情图片资源而不是引用在线资源。默认值False（不启用）
+Local_smile = false
+# [#58]本地表情图片资源路径。支持绝对路径与相对路径。尾部需要以 / 结尾
+Local_smile_path = '../smile/'
+# [#21]文件夹名是否包含标题。默认值False。修改后仅对全新拉取的tid生效
+Title_dir_name = false
+# [#21]Markdown 文件名是否为标题。默认值False。修改后仅对全新拉取的tid生效
+Title_md_name = false
