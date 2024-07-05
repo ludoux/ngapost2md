@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"math"
+
 	"github.com/imroc/req/v3"
 	"github.com/jessevdk/go-flags"
 	"github.com/ludoux/ngapost2md/nga"
