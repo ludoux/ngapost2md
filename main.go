@@ -138,6 +138,7 @@ func main() {
 	nga.CFGFILE_LOCAL_SMILE_PIC_PATH = cfg.Section("post").Key("local_smile_pic_path").String()
 	nga.CFGFILE_USE_TITLE_AS_FOLDER_NAME = cfg.Section("post").Key("use_title_as_folder_name").MustBool()
 	nga.CFGFILE_USE_TITLE_AS_MD_FILE_NAME = cfg.Section("post").Key("use_title_as_md_file_name").MustBool()
+	nga.CFGFILE_USE_NETWORK_PIC_URL = cfg.Section("post").Key("use_network_pic_url").MustBool()
 	nga.Client = nga.NewNgaClient()
 
 	tie := nga.Tiezi{}

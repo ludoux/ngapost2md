@@ -30,7 +30,7 @@ var (
 	CFGFILE_USE_TITLE_AS_MD_FILE_NAME = false
 	CFGFILE_USE_LOCAL_SMILE_PIC       = false       // 使用本地表情 #58
 	CFGFILE_LOCAL_SMILE_PIC_PATH      = "../smile/" //本地表情路径 #58
-
+	CFGFILE_USE_NETWORK_PIC_URL       = false       //图片只引用在线链接 #109
 )
 
 // 这里传参可以改
@@ -38,7 +38,7 @@ var (
 
 // 这里配置文件和传参都没法改
 var (
-	VERSION  = "1.7.1"      //需要手动改
+	VERSION  = "1.8.0"      //需要手动改
 	BUILD_TS = "1691664141" //无需，GitHub actions会自动填写
 	GIT_REF  = ""           //无需，GitHub actions会自动填写
 	GIT_HASH = ""           //无需，GitHub actions会自动填写
@@ -395,33 +395,37 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 				url = "https://img.nga.178.com/attachments/" + url[2:]
 			}
 			url = strings.ReplaceAll(url, ".medium.jpg", "")
-			sha := sha256.Sum256([]byte(url))
-			shaStr := hex.EncodeToString(sha[:])
-			shorted := shaStr[2:8] + url[len(url)-6:]
-			var fileName string
-
-			mutex.Lock()
-			var ok bool
-			v, ok := (*assets)[shorted]
-			if ok {
-				//存在，直接复用
-				fileName = v
+			if CFGFILE_USE_NETWORK_PIC_URL {
+				cont = strings.ReplaceAll(cont, `[img]`+it[1]+`[/img]`, `![img](`+url+`)`)
 			} else {
-				fileName = cast.ToString(floor.Lou) + "_" + shorted
-				(*assets)[shorted] = fileName
+				sha := sha256.Sum256([]byte(url))
+				shaStr := hex.EncodeToString(sha[:])
+				shorted := shaStr[2:8] + url[len(url)-6:]
+				var fileName string
 
-			}
+				mutex.Lock()
+				var ok bool
+				v, ok := (*assets)[shorted]
+				if ok {
+					//存在，直接复用
+					fileName = v
+				} else {
+					fileName = cast.ToString(floor.Lou) + "_" + shorted
+					(*assets)[shorted] = fileName
 
-			if !ok {
-				mutex.Unlock()
-				time.Sleep(time.Millisecond * time.Duration(DELAY_MS))
-				log.Println("下载图片:", fileName)
-				downloadAssets(url, `./`+tiezi.GetNeededFolderName()+`/`+fileName)
-				//log.Println("下载图片成功:", fileName)
-			} else {
-				mutex.Unlock()
+				}
+
+				if !ok {
+					mutex.Unlock()
+					time.Sleep(time.Millisecond * time.Duration(DELAY_MS))
+					log.Println("下载图片:", fileName)
+					downloadAssets(url, `./`+tiezi.GetNeededFolderName()+`/`+fileName)
+					//log.Println("下载图片成功:", fileName)
+				} else {
+					mutex.Unlock()
+				}
+				cont = strings.ReplaceAll(cont, `[img]`+it[1]+`[/img]`, `![img](./`+fileName+`)`)
 			}
-			cont = strings.ReplaceAll(cont, `[img]`+it[1]+`[/img]`, `![img](./`+fileName+`)`)
 		}
 
 		//表情
