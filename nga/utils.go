@@ -57,7 +57,7 @@ func downloadAssets(url string, fileName string) {
 	client := req.C()
 
 	// Download to the absolute file path.
-	client.R().SetOutputFile(fileName).Get(url)
+	client.ImpersonateChrome().R().SetOutputFile(fileName).Get(url)
 }
 
 func ToSaveFilename(in string) string {

@@ -12,7 +12,7 @@ var sectionList = []string{"config", "network", "post"}
 
 var defaultConfig = map[string][][3]string{
 	"config": {
-		{"version", "1.4.0", "请不要修改此处。请不要使用配置文件注释项来记录信息，软件加载时会强制覆盖删除。"},
+		{"version", "1.8.0", "请不要修改此处。请不要使用配置文件注释项来记录信息，软件加载时会强制覆盖删除。"},
 	},
 	"network": {
 		{"base_url", "https://bbs.nga.cn", "软件访问的nga域名。默认值 https://bbs.nga.cn"},
@@ -29,6 +29,7 @@ var defaultConfig = map[string][][3]string{
 		{"local_smile_pic_path", "../smile/", "[#58]本地表情图片资源路径。支持绝对路径与相对路径。尾部需要以 / 结尾。"},
 		{"use_title_as_folder_name", "False", "[#21]文件夹名是否包含标题。默认值False。修改后仅对全新拉取的tid生效。"},
 		{"use_title_as_md_file_name", "False", "[#21]Markdown 文件名是否为标题。默认值False。修改后仅对全新拉取的tid生效。"},
+		{"use_network_pic_url", "False", "[#109]是否直接使用图片的在线链接，而不是将图片资源下载到本地后做本地图片引用。默认值False（不启用）。"},
 	},
 }
 

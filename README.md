@@ -1,4 +1,4 @@
-# ngapost2md ver.[NEO_1.7.1]
+# ngapost2md ver.[NEO_1.8.0]
 
 ngapost2md 是一个将 NGA 论坛帖子转换为 Markdown 格式的工具。它支持快速爬楼并存储回复人、时间和内容，同时支持保存正文图片。
 
@@ -67,7 +67,7 @@ ngapost2md --gen-config-file 生成默认配置文件于 config.ini 并退出
 资瓷的有：
 
 - newline 换行
-- pic 图片（会下载下来）
+- pic 图片 ~~（会下载下来）~~ 可以选择下载或者不下载下来，参考 [#109](https://github.com/ludoux/ngapost2md/issues/109)
 - smile 表情（只是引用在线资源）
 - quote 回复与引用（阔以 jump 和 append 在最后 [#12](https://github.com/ludoux/ngapost2md/issues/12)）（多个 quote [#33](https://github.com/ludoux/ngapost2md/issues/33)）
 - strikeout 删除线
