@@ -483,7 +483,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 				quoteAuthor = anony(quoteAuthor)
 			} else {
 				// 拼一下，以拿到uid
-				reg_str = `\[uid=(\d+?)\]` + quoteAuthor + `\[\/uid\]`
+				reg_str = `\[uid=(\d+?)\]` + regexp.QuoteMeta(quoteAuthor) + `\[\/uid\]`
 				re = regexp.MustCompile(reg_str)
 				it := re.FindStringSubmatch(cont)
 				if len(it) >= 2 {
@@ -528,7 +528,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 					quoteAuthor = anony(quoteAuthor)
 				} else {
 					// 拼一下，以拿到uid
-					reg_str = `\[uid=(\d+?)\]` + quoteAuthor + `\[\/uid\]`
+					reg_str = `\[uid=(\d+?)\]` + regexp.QuoteMeta(quoteAuthor) + `\[\/uid\]`
 					re = regexp.MustCompile(reg_str)
 					it := re.FindStringSubmatch(cont)
 					if len(it) >= 2 {
@@ -555,7 +555,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 				quoteAuthor = anony(quoteAuthor)
 			} else {
 				// 拼一下，以拿到uid
-				reg_str = `\[uid=(\d+?)\]` + quoteAuthor + `\[\/uid\]`
+				reg_str = `\[uid=(\d+?)\]` + regexp.QuoteMeta(quoteAuthor) + `\[\/uid\]`
 				re = regexp.MustCompile(reg_str)
 				it := re.FindStringSubmatch(cont)
 				if len(it) >= 2 {
@@ -579,7 +579,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 				quoteAuthor = anony(quoteAuthor)
 			} else {
 				// 拼一下，以拿到uid
-				reg_str = `\[uid=(\d+?)\]` + quoteAuthor + `\[\/uid\]`
+				reg_str = `\[uid=(\d+?)\]` + regexp.QuoteMeta(quoteAuthor) + `\[\/uid\]`
 				re = regexp.MustCompile(reg_str)
 				it := re.FindStringSubmatch(cont)
 				if len(it) >= 2 {
