@@ -55,6 +55,7 @@ func main() {
 	}
 
 	if opts.Version {
+		fmt.Println("ngapost2md github.com/ludoux/ngapost2md")
 		fmt.Println("ngapost2md", nga.VERSION)
 		fmt.Println("Build_Time:", nga.BUILD_TS, time.Unix(cast.ToInt64(nga.BUILD_TS), 0).Local().Format("2006-01-02T15:04:05Z07:00"))
 		fmt.Println("Git_Ref:", nga.GIT_REF)
@@ -68,6 +69,7 @@ func main() {
 		log.Println("导出默认配置文件 config.ini 成功。")
 		os.Exit(0)
 	} else if opts.Help {
+		fmt.Println("ngapost2md github.com/ludoux/ngapost2md")
 		fmt.Println("使用: ngapost2md tid [--authorid aid]")
 		fmt.Println("选项与参数说明: ")
 		fmt.Println("tid: 待下载的帖子 tid 号")
