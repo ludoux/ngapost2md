@@ -72,6 +72,7 @@ func ToSaveFilename(in string) string {
 		"|", " ",
 		"?", " ",
 		"*", " ",
+		"&amp;", "&",
 	)
 	rt := rp.Replace(in)
 	return rt
