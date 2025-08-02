@@ -373,8 +373,9 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 		re = regexp.MustCompile(`<div class='dice'><b>ROLL : (.+?)</b>=(.+?)=<b>(.+?)</b></div>`)
 		for _, it := range re.FindAllStringSubmatch(cont, -1) {
 			rollSrc := it[1]
+			rollMiddle := it[2]
 			rollRt := it[3]
-			cont = strings.ReplaceAll(cont, it[0], fmt.Sprintf(" **【ROLL** : %s= **%s】** ", rollSrc, rollRt))
+			cont = strings.ReplaceAll(cont, it[0], fmt.Sprintf(" **【ROLL** : %s=%s= **%s】** ", rollSrc, rollMiddle, rollRt))
 		}
 
 		//collapse 折叠
