@@ -395,8 +395,9 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 				url = "https://img.nga.178.com/attachments/" + url[2:]
 			}
 			url = strings.ReplaceAll(url, ".medium.jpg", "")
+			imgBlockName := fmt.Sprintf("img-%s", strings.TrimPrefix(url, "https://img.nga.178.com/attachments/"))
 			if CFGFILE_USE_NETWORK_PIC_URL {
-				cont = strings.ReplaceAll(cont, `[img]`+it[1]+`[/img]`, `![img](`+url+`)`)
+				cont = strings.ReplaceAll(cont, `[img]`+it[1]+`[/img]`, fmt.Sprintf("![%s](%s)", imgBlockName, url))
 			} else {
 				sha := sha256.Sum256([]byte(url))
 				shaStr := hex.EncodeToString(sha[:])
@@ -404,9 +405,8 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 				var fileName string
 
 				mutex.Lock()
-				var ok bool
-				v, ok := (*assets)[shorted]
-				if ok {
+				v, existInCache := (*assets)[shorted]
+				if existInCache {
 					//存在，直接复用
 					fileName = v
 				} else {
@@ -414,17 +414,23 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 					(*assets)[shorted] = fileName
 
 				}
-
-				if !ok {
-					mutex.Unlock()
+				downloadOk := true
+				if !existInCache {
 					time.Sleep(time.Millisecond * time.Duration(DELAY_MS))
 					log.Println("下载图片:", fileName)
-					downloadAssets(url, `./`+tiezi.GetNeededFolderName()+`/`+fileName)
-					//log.Println("下载图片成功:", fileName)
-				} else {
-					mutex.Unlock()
+					if !downloadAssets(url, `./`+tiezi.GetNeededFolderName()+`/`+fileName) {
+						log.Println("下载图片失败, md 文件内将引用在线图片地址")
+						downloadOk = false
+						delete((*assets), shorted)
+					}
 				}
-				cont = strings.ReplaceAll(cont, `[img]`+it[1]+`[/img]`, `![img](./`+fileName+`)`)
+				if downloadOk {
+					cont = strings.ReplaceAll(cont, `[img]`+it[1]+`[/img]`, fmt.Sprintf("![%s](./%s)", imgBlockName, fileName))
+				} else {
+					// fallback to CFGFILE_USE_NETWORK_PIC_URL behavior
+					cont = strings.ReplaceAll(cont, `[img]`+it[1]+`[/img]`, fmt.Sprintf("![%s](%s)", imgBlockName, url))
+				}
+				mutex.Unlock()
 			}
 		}
 
