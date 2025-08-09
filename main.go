@@ -141,7 +141,6 @@ func main() {
 	nga.CFGFILE_USE_TITLE_AS_FOLDER_NAME = cfg.Section("post").Key("use_title_as_folder_name").MustBool()
 	nga.CFGFILE_USE_TITLE_AS_MD_FILE_NAME = cfg.Section("post").Key("use_title_as_md_file_name").MustBool()
 	nga.CFGFILE_USE_NETWORK_PIC_URL = cfg.Section("post").Key("use_network_pic_url").MustBool()
-	nga.CFGFILE_SPLIT_MD_FILE = cfg.Section("post").Key("split_md_file").RangeInt(-1, -1, 200)
 	nga.Client = nga.NewNgaClient()
 
 	tie := nga.Tiezi{}
