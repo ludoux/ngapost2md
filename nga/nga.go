@@ -31,6 +31,7 @@ var (
 	CFGFILE_USE_LOCAL_SMILE_PIC       = false       // 使用本地表情 #58
 	CFGFILE_LOCAL_SMILE_PIC_PATH      = "../smile/" //本地表情路径 #58
 	CFGFILE_USE_NETWORK_PIC_URL       = false       //图片只引用在线链接 #109
+	CFGFILE_SPLIT_MD_FILE             = -1          //是否切分生成的md文件，以及单文件的页数 #105
 )
 
 // 这里传参可以改
@@ -38,7 +39,7 @@ var (
 
 // 这里配置文件和传参都没法改
 var (
-	VERSION  = "1.8.1"      //需要手动改
+	VERSION  = "1.9.0"      //需要手动改
 	BUILD_TS = "1691664141" //无需，GitHub actions会自动填写
 	GIT_REF  = ""           //无需，GitHub actions会自动填写
 	GIT_HASH = ""           //无需，GitHub actions会自动填写
@@ -372,8 +373,9 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 		re = regexp.MustCompile(`<div class='dice'><b>ROLL : (.+?)</b>=(.+?)=<b>(.+?)</b></div>`)
 		for _, it := range re.FindAllStringSubmatch(cont, -1) {
 			rollSrc := it[1]
+			rollMiddle := it[2]
 			rollRt := it[3]
-			cont = strings.ReplaceAll(cont, it[0], fmt.Sprintf(" **【ROLL** : %s= **%s】** ", rollSrc, rollRt))
+			cont = strings.ReplaceAll(cont, it[0], fmt.Sprintf(" **【ROLL** : %s=%s= **%s】** ", rollSrc, rollMiddle, rollRt))
 		}
 
 		//collapse 折叠
@@ -658,16 +660,70 @@ func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
 func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 	folder := fmt.Sprintf("./%s/", tiezi.GetNeededFolderName())
 	os.MkdirAll(folder, os.ModePerm)
-	//后续判断md文件名。假如 post.md存在则继续沿用，否则根据个性化来设置
-	mdFilePath := filepath.Join(folder, "post.md")
-	if _, err := os.Stat(mdFilePath); os.IsNotExist(err) {
-		//post.md不存在，判断是否需要个性化
-		if CFGFILE_USE_TITLE_AS_MD_FILE_NAME {
-			mdName := fmt.Sprintf("%s.md", tiezi.TitleFolderSafe)
-			mdFilePath = filepath.Join(folder, mdName)
+
+	// 判断一下 md 文件切分的缓存文件
+	// 当前需要写入的文件尾标，如1则写 name-001.md
+	curSplitFileSuffixNum := 1
+	// 当前剩余的层数，>0。若为小于0则关闭此功能
+	curSplitFloorLeft := -1
+	if _, err := os.Stat(filepath.Join(folder, "splitinfo.ini")); os.IsNotExist(err) {
+		// 文件不存在，若有已知的未切分md文件，意味着本md文件不用切割，写入原先的大文件夹即可
+		// 若不存在已知的未切分文件，则说明是新任务，在下面需要设值
+	} else {
+		// 文件存在
+		cfg, err := ini.Load(filepath.Join(folder, "splitinfo.ini"))
+		if err != nil {
+			log.Fatalln("无法加载 splitinfo.ini: %v", err)
+		}
+		curSplitFileSuffixNum = cfg.Section("split").Key("file_suffix").MustInt()
+		curSplitFloorLeft = cfg.Section("split").Key("floor_left").MustInt()
+		if curSplitFloorLeft < 1 {
+			// 往原先的文件里写一层，然后写新文件
+			curSplitFloorLeft = 1
+		} else if curSplitFloorLeft > CFGFILE_SPLIT_MD_FILE {
+			// 假如缓存的剩余层数过大，则重设为当前配置下的设定
+			// 一页=20楼
+			curSplitFloorLeft = CFGFILE_SPLIT_MD_FILE * 20
 		}
 	}
 
+	// 首先判断是否存在 post.md 或者 个性化md (无后缀)，若有则继续沿用
+	// 最传统的
+	fileExists := true
+	mdName := "post.md"
+	mdFilePath := filepath.Join(folder, mdName)
+	if _, err := os.Stat(mdFilePath); os.IsNotExist(err) {
+		fileExists = false
+	} else {
+		fileExists = true
+	}
+
+	if !fileExists && CFGFILE_USE_TITLE_AS_MD_FILE_NAME {
+		// 最传统的不存在，且开启了个性化，判断是否存在个性化无后缀
+		mdName = fmt.Sprintf("%s.md", tiezi.TitleFolderSafe)
+		mdFilePath = filepath.Join(folder, mdName)
+		if _, err := os.Stat(mdFilePath); os.IsNotExist(err) {
+			fileExists = false
+		} else {
+			fileExists = true
+		}
+	}
+
+	rawName := "post"
+	if !fileExists && (curSplitFloorLeft > 0 || CFGFILE_SPLIT_MD_FILE > 0) {
+		// 以上两种没有后缀的都不存在，且开启了切分，则需要设定为带切分的了
+		if curSplitFloorLeft < 1 {
+			// 说明上面没有读到splitinfo.ini文件，需要设置为配置值
+			// 一页=20楼
+			curSplitFloorLeft = CFGFILE_SPLIT_MD_FILE * 20
+		}
+		rawName = "post"
+		if CFGFILE_USE_TITLE_AS_MD_FILE_NAME {
+			rawName = tiezi.TitleFolderSafe
+		}
+		mdName = fmt.Sprintf("%s-%03d.md", rawName, curSplitFileSuffixNum)
+		mdFilePath = filepath.Join(folder, mdName)
+	}
 	if _, err := os.Stat(mdFilePath); os.IsNotExist(err) {
 		if _, err := os.Create(mdFilePath); err != nil {
 			log.Fatalf("创建或打开 .md 文件失败：%v", err)
@@ -684,6 +740,21 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 		if floor.Lou == -1 {
 			//被抽楼了
 			continue
+		}
+
+		if curSplitFloorLeft == 0 {
+			// 当前文件已经写完了，需要开新文件了
+			f.Close()
+			curSplitFileSuffixNum = curSplitFileSuffixNum + 1
+			curSplitFloorLeft = CFGFILE_SPLIT_MD_FILE * 20
+			mdName = fmt.Sprintf("%s-%03d.md", rawName, curSplitFileSuffixNum)
+			mdFilePath = filepath.Join(folder, mdName)
+			f, err = os.OpenFile(mdFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+			if err != nil {
+				log.Fatalf("创建或打开 .md 文件失败：%v", err)
+			}
+			// 补一个这个，防止把顶的`----`识别成注释，导致无法渲染第一个楼层
+			f.WriteString(" ")
 		}
 
 		if floor.Pid == 0 {
@@ -728,6 +799,19 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 		}
 
 		_, _ = f.WriteString("\n\n")
+		if curSplitFloorLeft > 0 {
+			curSplitFloorLeft = curSplitFloorLeft - 1
+		}
+	}
+
+	// 要考虑为0时的情况，为0时也是属于开启了这个功能
+	if curSplitFloorLeft > -1 {
+		fileName := filepath.Join(folder, "splitinfo.ini")
+		cfg := ini.Empty()
+		cfg.NewSection("split")
+		cfg.Section("split").NewKey("file_suffix", cast.ToString(curSplitFileSuffixNum))
+		cfg.Section("split").NewKey("floor_left", cast.ToString(curSplitFloorLeft))
+		cfg.SaveTo(fileName)
 	}
 }
 
