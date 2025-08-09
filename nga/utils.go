@@ -53,11 +53,17 @@ func anony(it string) string {
 	return res
 }
 
-func downloadAssets(url string, fileName string) {
+func downloadAssets(url string, fileName string) bool {
 	client := req.C()
 
 	// Download to the absolute file path.
-	client.ImpersonateChrome().R().SetOutputFile(fileName).Get(url)
+	resp, _ := client.ImpersonateChrome().R().SetOutputFile(fileName).Get(url)
+	if !resp.IsSuccessState() {
+		log.Println("下载资源失败:", url, resp.GetStatusCode())
+		os.Remove(fileName)
+		return false
+	}
+	return true
 }
 
 func ToSaveFilename(in string) string {
