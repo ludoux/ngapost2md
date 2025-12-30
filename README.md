@@ -36,9 +36,12 @@ windows
 ```
 > ./ngapost2md -h
 
+ngapost2md github.com/ludoux/ngapost2md
 使用: ngapost2md tid [--authorid aid]
+或:  ngapost2md url [--authorid aid]
 选项与参数说明: 
 tid: 待下载的帖子 tid 号
+url: NGA帖子的链接，例如: https://nga.178.com/read.php?tid=123&authorid=456
 aid: 只看某用户 id 发言层，需配合 --authorid 参数
 
 ngapost2md -v, --version     显示版本信息并退出
