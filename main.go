@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -45,6 +46,37 @@ func checkUpdate() {
 
 }
 
+// 从链接中提取tid和authorid
+func extractTidAndAuthorIdFromUrl(url string) (int, int) {
+	// 匹配 read.php 后的参数，域名可能变化
+	re := regexp.MustCompile(`read\.php\?(.*$)`)
+	matches := re.FindStringSubmatch(url)
+	if len(matches) < 2 {
+		return 0, 0
+	}
+
+	// 解析参数
+	params := matches[1]
+	tid := 0
+	authorId := 0
+
+	// 提取tid
+	tidRe := regexp.MustCompile(`tid=(\d+)`)
+	tidMatches := tidRe.FindStringSubmatch(params)
+	if len(tidMatches) > 1 {
+		tid = cast.ToInt(tidMatches[1])
+	}
+
+	// 提取authorid
+	authorIdRe := regexp.MustCompile(`authorid=(\d+)`)
+	authorIdMatches := authorIdRe.FindStringSubmatch(params)
+	if len(authorIdMatches) > 1 {
+		authorId = cast.ToInt(authorIdMatches[1])
+	}
+
+	return tid, authorId
+}
+
 func main() {
 	var opts Option
 	parser := flags.NewParser(&opts, flags.Default & ^flags.HelpFlag)
@@ -71,8 +103,10 @@ func main() {
 	} else if opts.Help {
 		fmt.Println("ngapost2md github.com/ludoux/ngapost2md")
 		fmt.Println("使用: ngapost2md tid [--authorid aid]")
+		fmt.Println("或:  ngapost2md url [--authorid aid]")
 		fmt.Println("选项与参数说明: ")
 		fmt.Println("tid: 待下载的帖子 tid 号")
+		fmt.Println("url: NGA帖子的链接，例如: https://nga.178.com/read.php?tid=123&authorid=456")
 		fmt.Println("aid: 只看某用户 id 发言层，需配合 --authorid 参数")
 		fmt.Println("")
 		fmt.Println("ngapost2md -v, --version    ", parser.FindOptionByLongName("version").Description)
@@ -85,12 +119,29 @@ func main() {
 	}
 
 	var tid int
+	var authorIdFromUrl int = 0
 	if len(args) != 1 {
 		log.Fatalln("未传入 tid 或格式错误")
 	} else {
-		tid, err = cast.ToIntE(args[0])
-		if err != nil {
-			log.Fatalln("tid", args[0], "无法转为数字:", err.Error())
+		// 检查是否是URL链接
+		arg := args[0]
+		if strings.Contains(arg, "read.php") {
+			// 从URL中提取tid和authorid
+			tid, authorIdFromUrl = extractTidAndAuthorIdFromUrl(arg)
+			if tid == 0 {
+				log.Fatalln("无法从链接中提取到有效的tid:", arg)
+			}
+			// 如果命令行参数中没有指定authorid，但URL中有，则使用URL中的authorid
+			// 即命令行参数的aid是最高优先级
+			if opts.AuthorId == 0 && authorIdFromUrl != 0 {
+				opts.AuthorId = authorIdFromUrl
+			}
+		} else {
+			// 直接是tid
+			tid, err = cast.ToIntE(arg)
+			if err != nil {
+				log.Fatalln("tid", arg, "无法转为数字:", err.Error())
+			}
 		}
 	}
 
