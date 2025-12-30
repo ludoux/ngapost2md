@@ -654,30 +654,39 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 	folder := fmt.Sprintf("./%s/", tiezi.GetNeededFolderName())
 	os.MkdirAll(folder, os.ModePerm)
 
+	splitInfoPath := filepath.Join(folder, "splitinfo.ini")
+
 	// 判断一下 md 文件切分的缓存文件
 	// 当前需要写入的文件尾标，如1则写 name-001.md
 	curSplitFileSuffixNum := 1
-	// 当前剩余的层数，>0。若为小于0则关闭此功能
+	// 当前剩余的层数，>0。若为小于等于0则关闭此功能
 	curSplitFloorLeft := -1
-	if _, err := os.Stat(filepath.Join(folder, "splitinfo.ini")); os.IsNotExist(err) {
+	// 为了处理曾经切但现在不切的情况（按切但是=1来处理）
+	localCFGFILE_SPLIT_MD_FILE := CFGFILE_SPLIT_MD_FILE
+	if _, err := os.Stat(splitInfoPath); os.IsNotExist(err) {
 		// 文件不存在，若有已知的未切分md文件，意味着本md文件不用切割，写入原先的大文件夹即可
-		// 若不存在已知的未切分文件，则说明是新任务，在下面需要设值
+		// 若不存在已知的未切分文件，则说明是新任务
 	} else {
-		// 文件存在
-		cfg, err := ini.Load(filepath.Join(folder, "splitinfo.ini"))
+		// 文件存在，需要切分
+		cfg, err := ini.Load(splitInfoPath)
 		if err != nil {
-			log.Fatalln("无法加载 splitinfo.ini: %v", err)
+			log.Fatalln("无法加载 splitinfo.ini:", err)
+		}
+
+		// 检查配置是否发生了变化，如果变动了则提示，然后使用新的参数
+		// 如果最新配置是不切分，但存在splitinfo.ini文件，说明之前是切分模式，继续使用之前的切分模式，切分参数临时调为1
+		prevSplitSetting := cfg.Section("split").Key("setting_value").MustInt(1)
+		if prevSplitSetting != CFGFILE_SPLIT_MD_FILE {
+			// 配置发生了变化，提示后使用新的设置
+			log.Println("此文件夹存在旧切分配置(", prevSplitSetting, ")和当前配置(", CFGFILE_SPLIT_MD_FILE, ")不符，将使用新切分配置")
+			if CFGFILE_SPLIT_MD_FILE < 1 {
+				log.Println("当前配置为关闭切分(-1)，但本任务会按照=1页来进行切分。即只要曾经切分过，则后续仍切分")
+				localCFGFILE_SPLIT_MD_FILE = 1
+			}
 		}
 		curSplitFileSuffixNum = cfg.Section("split").Key("file_suffix").MustInt()
-		curSplitFloorLeft = cfg.Section("split").Key("floor_left").MustInt()
-		if curSplitFloorLeft < 1 {
-			// 往原先的文件里写一层，然后写新文件
-			curSplitFloorLeft = 1
-		} else if curSplitFloorLeft > CFGFILE_SPLIT_MD_FILE {
-			// 假如缓存的剩余层数过大，则重设为当前配置下的设定
-			// 一页=20楼
-			curSplitFloorLeft = CFGFILE_SPLIT_MD_FILE * 20
-		}
+		// 最小为1，即往旧文件写一楼然后开新文件
+		curSplitFloorLeft = max(min(cfg.Section("split").Key("floor_left").MustInt(), localCFGFILE_SPLIT_MD_FILE*20), 1)
 	}
 
 	// 首先判断是否存在 post.md 或者 个性化md (无后缀)，若有则继续沿用
@@ -689,6 +698,7 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 		fileExists = false
 	} else {
 		fileExists = true
+		// 存在最传统的post.md，后续为post.md
 	}
 
 	if !fileExists && CFGFILE_USE_TITLE_AS_MD_FILE_NAME {
@@ -699,16 +709,17 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 			fileExists = false
 		} else {
 			fileExists = true
+			// 存在个性化无后缀，后续为此类型
 		}
 	}
 
 	rawName := "post"
-	if !fileExists && (curSplitFloorLeft > 0 || CFGFILE_SPLIT_MD_FILE > 0) {
+	if !fileExists && (curSplitFloorLeft > 0 || localCFGFILE_SPLIT_MD_FILE > 0) {
 		// 以上两种没有后缀的都不存在，且开启了切分，则需要设定为带切分的了
 		if curSplitFloorLeft < 1 {
 			// 说明上面没有读到splitinfo.ini文件，需要设置为配置值
 			// 一页=20楼
-			curSplitFloorLeft = CFGFILE_SPLIT_MD_FILE * 20
+			curSplitFloorLeft = localCFGFILE_SPLIT_MD_FILE * 20
 		}
 		rawName = "post"
 		if CFGFILE_USE_TITLE_AS_MD_FILE_NAME {
@@ -719,13 +730,13 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 	}
 	if _, err := os.Stat(mdFilePath); os.IsNotExist(err) {
 		if _, err := os.Create(mdFilePath); err != nil {
-			log.Fatalf("创建或打开 .md 文件失败：%v", err)
+			log.Fatalf("创建 .md 文件失败：%v", err)
 		}
 	}
 
 	f, err := os.OpenFile(mdFilePath, os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
-		log.Fatalf("创建或打开 .md 文件失败：%v", err)
+		log.Fatalf("打开 .md 文件失败：%v", err)
 	}
 	defer f.Close()
 	for i := localMaxFloor; i < len(tiezi.Floors); i++ {
@@ -735,11 +746,11 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 			continue
 		}
 
-		if curSplitFloorLeft == 0 {
-			// 当前文件已经写完了，需要开新文件了
+		if curSplitFloorLeft == 0 && localCFGFILE_SPLIT_MD_FILE > 0 {
+			// 当前文件已经写完了，需要开新文件了（只有在切分模式下才创建新文件）
 			f.Close()
 			curSplitFileSuffixNum = curSplitFileSuffixNum + 1
-			curSplitFloorLeft = CFGFILE_SPLIT_MD_FILE * 20
+			curSplitFloorLeft = localCFGFILE_SPLIT_MD_FILE * 20
 			mdName = fmt.Sprintf("%s-%03d.md", rawName, curSplitFileSuffixNum)
 			mdFilePath = filepath.Join(folder, mdName)
 			f, err = os.OpenFile(mdFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
@@ -797,13 +808,14 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 		}
 	}
 
-	// 要考虑为0时的情况，为0时也是属于开启了这个功能
-	if curSplitFloorLeft > -1 {
+	// 要考虑为0时的情况，为0时也是关闭了这个功能
+	if localCFGFILE_SPLIT_MD_FILE > 0 {
 		fileName := filepath.Join(folder, "splitinfo.ini")
 		cfg := ini.Empty()
 		cfg.NewSection("split")
 		cfg.Section("split").NewKey("file_suffix", cast.ToString(curSplitFileSuffixNum))
 		cfg.Section("split").NewKey("floor_left", cast.ToString(curSplitFloorLeft))
+		cfg.Section("split").NewKey("setting_value", cast.ToString(localCFGFILE_SPLIT_MD_FILE)) // 记录当前配置值
 		cfg.SaveTo(fileName)
 	}
 }
