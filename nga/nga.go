@@ -31,6 +31,7 @@ var (
 	CFGFILE_USE_LOCAL_SMILE_PIC       = false       // 使用本地表情 #58
 	CFGFILE_LOCAL_SMILE_PIC_PATH      = "../smile/" //本地表情路径 #58
 	CFGFILE_USE_NETWORK_PIC_URL       = false       //图片只引用在线链接 #109
+	CFGFILE_ASSETS_PATH               = "./assets/" //帖子资源路径 #124
 	CFGFILE_SPLIT_MD_FILE             = -1          //是否切分生成的md文件，以及单文件的页数 #105
 )
 
@@ -262,10 +263,10 @@ func (tiezi *Tiezi) InitFromLocal(tid int, authorId int) {
 	if folderName == "" {
 		log.Fatalln("找不到本地 tid 文件夹，软件将退出。")
 	}
-	processFileName := fmt.Sprintf("./%s/process.ini", folderName)
+	processFileName := filepath.Join(".", folderName, "process.ini")
 	checkFileExistence(processFileName)
 
-	assetsFileName := fmt.Sprintf("./%s/assets.json", folderName)
+	assetsFileName := filepath.Join(".", folderName, "assets.json")
 	checkFileExistence(assetsFileName)
 
 	jsonBytes, _ := os.ReadFile(assetsFileName)
@@ -420,12 +421,17 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 					mutex.Unlock()
 					time.Sleep(time.Millisecond * time.Duration(DELAY_MS))
 					log.Println("下载图片:", fileName)
-					downloadAssets(url, `./`+tiezi.GetNeededFolderName()+`/`+fileName)
+					// 确保目录存在
+					assetDir := filepath.Join(".", tiezi.GetNeededFolderName(), CFGFILE_ASSETS_PATH)
+					os.MkdirAll(assetDir, os.ModePerm)
+					downloadAssets(url, filepath.Join(assetDir, fileName))
 					//log.Println("下载图片成功:", fileName)
 				} else {
 					mutex.Unlock()
 				}
-				cont = strings.ReplaceAll(cont, `[img]`+it[1]+`[/img]`, `![img](./`+fileName+`)`)
+				// 更新图片引用路径
+				relativePath := filepath.Join(".", CFGFILE_ASSETS_PATH, fileName)
+				cont = strings.ReplaceAll(cont, `[img]`+it[1]+`[/img]`, fmt.Sprintf(`![img](%s)`, relativePath))
 			}
 		}
 
@@ -441,11 +447,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 				} else {
 					smile_name = smile_name + ".png"
 				}
-				prefix := CFGFILE_LOCAL_SMILE_PIC_PATH
-				if !strings.HasSuffix(prefix, "/") {
-					prefix = prefix + "/"
-				}
-				final := prefix + smile_name
+				final := filepath.Join(CFGFILE_LOCAL_SMILE_PIC_PATH, smile_name)
 				cont = strings.ReplaceAll(cont, it, `![`+strings.Split(it, `:`)[2]+`(`+final+`)`)
 			}
 		}
@@ -651,7 +653,7 @@ func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
  * @return {*}
  */
 func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
-	folder := fmt.Sprintf("./%s/", tiezi.GetNeededFolderName())
+	folder := filepath.Join(".", tiezi.GetNeededFolderName())
 	os.MkdirAll(folder, os.ModePerm)
 
 	splitInfoPath := filepath.Join(folder, "splitinfo.ini")
@@ -848,7 +850,7 @@ func (tiezi *Tiezi) GetNeededFolderName() string {
 }
 
 func (tiezi *Tiezi) SaveProcessInfo() {
-	folder := fmt.Sprintf("./%s/", tiezi.GetNeededFolderName())
+	folder := filepath.Join(".", tiezi.GetNeededFolderName())
 
 	fileName := filepath.Join(folder, "process.ini")
 	cfg := ini.Empty()
@@ -859,7 +861,7 @@ func (tiezi *Tiezi) SaveProcessInfo() {
 }
 
 func (tiezi *Tiezi) SaveAssetsMap() {
-	folder := fmt.Sprintf("./%s/", tiezi.GetNeededFolderName())
+	folder := filepath.Join(".", tiezi.GetNeededFolderName())
 
 	fileName := filepath.Join(folder, "assets.json")
 	result, err := json.Marshal(tiezi.Assets)
