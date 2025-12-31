@@ -29,7 +29,7 @@ var defaultConfig = map[string][][3]string{
 		{"local_smile_pic_path", "../smile/", "[#58]本地表情图片资源路径。支持绝对路径与相对路径。尾部需要以 / 结尾。"},
 		{"use_title_as_folder_name", "False", "[#21]文件夹名是否包含标题。默认值False。修改后仅对全新拉取的tid生效。"},
 		{"use_title_as_md_file_name", "False", "[#21]Markdown 文件名是否为标题。默认值False。修改后仅对全新拉取的tid生效。"},
-		{"use_network_pic_url", "False", "[#109]是否直接使用图片的在线链接，而不是将图片资源下载到本地后做本地图片引用。默认值False（不启用）。"},
+		{"use_network_media_url", "False", "[#109]是否直接使用媒体文件的在线链接，而不是将媒体资源下载到本地后做本地媒体引用。默认值False（不启用）。"},
 		{"assets_path", "./assets/", "[#124]帖子资源路径。留空或.则保存在同目录下。默认值 ./assets/。"},
 		{"split_md_file", "-1", "[#105]是否切分生成的 md 文件，且切分后每个文件约含有的页数。1页约等于20层。允许范围-1（含）至200（含）。值为0或-1时则不切分，其他范围则表示切分且每个文件约含有的页数。默认值-1（不切分）。"},
 	},
@@ -37,7 +37,7 @@ var defaultConfig = map[string][][3]string{
 
 // 会自动更新、格式化配置文件并保存
 func GetConfigAutoUpdate() (*ini.File, error) {
-	//不要等号对齐，那样子好难看
+	// 不要等号对齐，那样子好难看
 	ini.PrettyFormat = false
 	// 打开旧的INI配置文件
 	cfg, err := ini.Load("config.ini")
@@ -46,19 +46,18 @@ func GetConfigAutoUpdate() (*ini.File, error) {
 	}
 
 	if !cfg.Section("config").HasKey("version") {
-		//确保错误配置文件不会导致被覆盖
+		// 确保错误配置文件不会导致被覆盖
 		return nil, fmt.Errorf("无法找到配置文件版本信息！可能读取错误，或配置文件已损坏。请手动重新填写默认配置文件。")
 	}
 
 	localCfgVersion := cfg.Section("config").Key("version").String()
-	//此为默认配置
+	// 此为默认配置
 	defaultcfg := genDefaultConfig()
 	latestCfgVersion := defaultcfg.Section("config").Key("version").String()
 
 	// 针对相同功能，新配置相比于旧配置名字不同，需要进行自动迁移
-	switch localCfgVersion {
-	case "1.2.0":
-		//从1.2.0->1.4.0时，enable_post_title 更名为 use_title_as_md_file_name
+	if cfg.Section(("post")).HasKey("enable_post_title") && !cfg.Section(("post")).HasKey("use_title_as_md_file_name") {
+		// 从1.2.0->1.4.0时，enable_post_title 更名为 use_title_as_md_file_name
 		var oldValue string
 		if cfg.Section("post").Key("enable_post_title").MustBool() {
 			oldValue = "True"
@@ -67,16 +66,26 @@ func GetConfigAutoUpdate() (*ini.File, error) {
 		}
 		defaultcfg.Section("post").Key("use_title_as_md_file_name").SetValue(oldValue)
 	}
+	if cfg.Section(("post")).HasKey("use_network_pic_url") && !cfg.Section(("post")).HasKey("use_network_media_url") {
+		// 从1.8.0/1.9.0->1.10.0，use_network_pic_url 更名为 use_network_media_url
+		var oldValue string
+		if cfg.Section("post").Key("use_network_pic_url").MustBool() {
+			oldValue = "True"
+		} else {
+			oldValue = "False"
+		}
+		defaultcfg.Section("post").Key("use_network_media_url").SetValue(oldValue)
+	}
 
-	//基于默认配置，往默认配置内填已存在配置的信息
+	// 基于默认配置，往默认配置内填已存在配置的信息
 	for _, section := range defaultcfg.Sections() {
 		for _, key := range section.Keys() {
 			if section.Name() == "config" && key.Name() == "version" {
-				//版本号不读取旧的，换用新的
+				// 版本号不读取旧的，换用新的
 				continue
 			}
 			if cfg.HasSection(section.Name()) && cfg.Section(section.Name()).HasKey(key.Name()) {
-				//读取配置内有此项，将value值填入默认配置内
+				// 读取配置内有此项，将value值填入默认配置内
 				cfgValue := cfg.Section(section.Name()).Key(key.Name()).Value()
 				key.SetValue(cfgValue)
 			}
