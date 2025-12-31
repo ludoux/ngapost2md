@@ -161,7 +161,7 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	//Cookie
+	// Cookie
 	var ngaPassportUid = cfg.Section("network").Key("ngaPassportUid").String()
 	var ngaPassportCid = cfg.Section("network").Key("ngaPassportCid").String()
 	var cookie strings.Builder
@@ -171,7 +171,7 @@ func main() {
 	nga.BASE_URL = cfg.Section("network").Key("base_url").String()
 	nga.UA = cfg.Section("network").Key("ua").String()
 
-	//核心配置项未更改，拒绝执行
+	// 核心配置项未更改，拒绝执行
 	if ngaPassportUid == "" || strings.Contains(ngaPassportUid, "MODIFY_ME") {
 		log.Fatalln("配置项配置错误: ngaPassportUid=", ngaPassportUid)
 	}
@@ -182,7 +182,7 @@ func main() {
 		log.Fatalln("配置项配置错误: ua=", nga.UA)
 	}
 
-	//默认线程数为2,仅支持1~3
+	// 默认线程数为2,仅支持1~3
 	nga.CFGFILE_THREAD_COUNT = cfg.Section("network").Key("thread").InInt(2, []int{1, 2, 3})
 	nga.CFGFILE_PAGE_DOWNLOAD_LIMIT = cfg.Section("network").Key("page_download_limit").RangeInt(100, -1, 100)
 	nga.CFGFILE_GET_IP_LOCATION = cfg.Section("post").Key("get_ip_location").MustBool()
@@ -191,7 +191,7 @@ func main() {
 	nga.CFGFILE_LOCAL_SMILE_PIC_PATH = cfg.Section("post").Key("local_smile_pic_path").String()
 	nga.CFGFILE_USE_TITLE_AS_FOLDER_NAME = cfg.Section("post").Key("use_title_as_folder_name").MustBool()
 	nga.CFGFILE_USE_TITLE_AS_MD_FILE_NAME = cfg.Section("post").Key("use_title_as_md_file_name").MustBool()
-	nga.CFGFILE_USE_NETWORK_PIC_URL = cfg.Section("post").Key("use_network_pic_url").MustBool()
+	nga.CFGFILE_USE_NETWORK_MEDIA_URL = cfg.Section("post").Key("use_network_media_url").MustBool()
 	nga.CFGFILE_ASSETS_PATH = cfg.Section("post").Key("assets_path").String()
 	nga.CFGFILE_SPLIT_MD_FILE = cfg.Section("post").Key("split_md_file").RangeInt(-1, -1, 200)
 	nga.Client = nga.NewNgaClient()

@@ -93,7 +93,7 @@ func FindFolderNameByTid(tid int, authorId int) string {
 		log.Fatalln(err.Error())
 		return ""
 	}
-	//即不存在直接以 tid 命名的文件夹，接下来判断是否存在以 tid- 开头的文件夹
+	// 即不存在直接以 tid 命名的文件夹，接下来判断是否存在以 tid- 开头的文件夹
 	if authorId > 0 {
 		folderName = filepath.Join(".", fmt.Sprintf("%d(%d)-*", tid, authorId))
 	} else {

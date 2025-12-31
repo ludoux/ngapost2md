@@ -1,4 +1,4 @@
-# ngapost2md ver.[NEO_1.9.0]
+# ngapost2md ver.[NEO_1.10.0]
 
 ngapost2md 是一个将 NGA 论坛帖子转换为 Markdown 格式的工具。它支持快速爬楼并存储回复人、时间和内容，同时支持保存正文图片。
 
@@ -13,7 +13,7 @@ ngapost2md 是一个将 NGA 论坛帖子转换为 Markdown 格式的工具。它
 
 ## 使用说明
 
-无责任推荐一个有人味的[使用说明](https://bbs.nga.cn/read.php?tid=44054712)。但是假如提需求提建议请不要在这个帖子里头发（因为这个不是我写的）。部分信息可能会变化，请以下述以及 Release 页面为最新内容。
+无责任推荐一个有人味的[使用说明甲](https://bbs.nga.cn/read.php?tid=44054712)和[使用说明乙](https://bbs.nga.cn/read.php?tid=45832408)。但是假如提需求提建议请不要在这些帖子里头发（因为这个不是我写的）。部分信息可能会变化，请以下述以及 Release 页面为最新内容。
 
 1. 下载并解压发布版本的压缩包。
 2. 修改 config.ini 文件中的配置项，根据需要进行相应的修改，确保 `config.ini`  文件存在且与可执行文件在同一目录下（平级关系）。
@@ -75,18 +75,18 @@ ngapost2md --gen-config-file 生成默认配置文件于 config.ini 并退出
 
 - newline 换行
 - pic 图片 ~~（会下载下来）~~ 可以选择下载或者不下载下来，参考 [#109](https://github.com/ludoux/ngapost2md/issues/109)
+- audio 音频 [#103](https://github.com/ludoux/ngapost2md/issues/103)
+- video 视频 [#103](https://github.com/ludoux/ngapost2md/issues/103)
 - smile 表情（只是引用在线资源）
 - quote 回复与引用（阔以 jump 和 append 在最后 [#12](https://github.com/ludoux/ngapost2md/issues/12)）（多个 quote [#33](https://github.com/ludoux/ngapost2md/issues/33)）
 - strikeout 删除线
 - url 超链接
-- anony 匿名 （[#11](https://github.com/ludoux/ngapost2md/issues/11)）
-- 用户基于 IP 的位置 （[#45](https://github.com/ludoux/ngapost2md/pull/45)）
+- anony 匿名 [#11](https://github.com/ludoux/ngapost2md/issues/11)
+- 用户基于 IP 的位置 [#45](https://github.com/ludoux/ngapost2md/pull/45)
 
 不资瓷并且常出现的有：
 - ~~align 对齐~~ 目前 Go 版本不支持
 - ~~collapse 折叠 （[#10](https://github.com/ludoux/ngapost2md/issues/10)）~~ 目前 Go 版本不支持
-- ~~audio 音频 （[#15](https://github.com/ludoux/ngapost2md/issues/15)）~~ 目前 Go 版本不支持
-- ~~video 音频~~ 目前 Go 版本不支持
 - 字体颜色啊大小之类的格式
 - 表格之类的复杂排版
 
