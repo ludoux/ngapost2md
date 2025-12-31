@@ -25,6 +25,7 @@ var (
 	CFGFILE_THREAD_COUNT              = 2
 	CFGFILE_GET_IP_LOCATION           = false //	获取ip地址
 	CFGFILE_ENHANCE_ORI_REPLY         = false //	功能见 #35
+	CFGFILE_ENHANCE_ORI_REPLY_ONLINE  = false //	功能见 #122
 	CFGFILE_PAGE_DOWNLOAD_LIMIT       = 100   //	限制单次下载的页数 #56
 	CFGFILE_USE_TITLE_AS_FOLDER_NAME  = false
 	CFGFILE_USE_TITLE_AS_MD_FILE_NAME = false
@@ -294,7 +295,7 @@ func (tiezi *Tiezi) page(page int) {
 		tiezi.FloorCount = cast.ToInt(value_int - 1)
 
 		// 初始化floors个数
-		if tiezi.Floors == nil || len(tiezi.Floors) == 0 {
+		if len(tiezi.Floors) == 0 {
 			tiezi.Floors = make([]Floor, tiezi.FloorCount)
 			for i := range tiezi.Floors {
 				tiezi.Floors[i].Lou = -1
@@ -382,84 +383,83 @@ func (tiezi *Tiezi) findFloorByPid(pid int) *Floor {
 			return &v
 		}
 	}
+	if CFGFILE_ENHANCE_ORI_REPLY_ONLINE {
+		// 可以开新的网络请求，只填充content
+		resp, err := Client.R().SetFormData(map[string]string{
+			"tid": cast.ToString(tiezi.Tid),
+			"pid": cast.ToString(pid),
+		}).Post("app_api.php?__lib=post&__act=list")
+		if err != nil {
+			log.Fatalln(err.Error())
+		}
+		code, _ := jsonparser.GetInt(resp.Bytes(), "code")
+		if code != 0 {
+			msg, _ := jsonparser.GetString(resp.Bytes(), "msg")
+			log.Fatalln("获取回复内容失败 nga返回代码不为0:", code, msg)
+		}
+		// 解析返回的楼层数据
+		value_byte, dataType, _, _ := jsonparser.Get(resp.Bytes(), "result")
+		if dataType == jsonparser.NotExist {
+			log.Fatalln("获取回复内容失败，result不存在")
+		}
+		content, err := jsonparser.GetString(value_byte, "[0]", "content")
+		if err != nil {
+			log.Fatalln(err.Error())
+		}
+		// 尽量修大部分文本内容
+		return &Floor{Content: fixMost(content, nil, nil)}
+	}
 	return nil
 }
 
-/**
- * @description: 由bbcode转md，以及下载图片、转化表情等
- * @param {int} floor_i floor下标
- * @return {*}
- */
-func (tiezi *Tiezi) fixContent(floor_i int) {
-	/*此接口(app_api)与旧接口不太相同，有些源码格式和网页端看到的不一样！
-	 *1. 疑似匿名直接显示
-	 *2. 删除线有变
-	 *3. quote reply等，[b]变化；假如是匿名用户，就不会有 uid框框
-	 */
-	// tid int, assets *(map[string]string)
-	assets := &tiezi.Assets
-	oriFloor := &tiezi.Floors[floor_i]
-	floor := &tiezi.Floors[floor_i]
-	curCommentI := -1
-
-	// 循环尾部有判断是否有comments且是否进去的操作，请注意
-	for {
-		// 假如要获取IP位置则在此处获取
-		if CFGFILE_GET_IP_LOCATION {
-			resp, err := Client.R().SetFormData(map[string]string{
-				"uid": cast.ToString(floor.UserId),
-			}).Post("nuke.php?__lib=ucp&__act=get&__output=8")
-			if err != nil {
-				log.Println(err.Error())
-			} else {
-				value_str, err := jsonparser.GetString(resp.Bytes(), "data", "0", "ipLoc")
-				if err != nil {
-					log.Println("获取用户IP位置失败: " + err.Error())
-				} else {
-					floor.IpLocation = value_str
-				}
-			}
-		}
-		// 获取IP位置结束
-
+func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
+	fixReplace := func(cont string) string {
 		replacements := map[string]string{
-			`\u0026`:      "&",
-			`\u003c`:      "<",
-			`\u003e`:      ">",
-			`&amp;#160;`:  " ",
-			`<br/>`:       "\n",
-			`<br>`:        "\n",
-			`&lt;br/&gt;`: "\n",
-			`&lt;br&gt;`:  "\n",
+			`\u0026`:             "&",
+			`\u003c`:             "<",
+			`\u003e`:             ">",
+			`&amp;#160;`:         " ",
+			`<br/>`:              "\n",
+			`<br>`:               "\n",
+			`&lt;br/&gt;`:        "\n",
+			`&lt;br&gt;`:         "\n",
+			`<del class='gray'>`: `~~`,
+			`</del>`:             `~~`,
 		}
-
-		cont := floor.Content
 		for old, new := range replacements {
 			cont = strings.ReplaceAll(cont, old, new)
 		}
-
+		return cont
+	}
+	fixAnony := func(cont string, floor *Floor) string {
 		// 匿名
-		if len(floor.Username) > 7 && floor.Username[:7] == `#anony_` {
-			floor.Username = anony(floor.Username)
+		if floor != nil {
+			if len(floor.Username) > 7 && floor.Username[:7] == `#anony_` {
+				floor.Username = anony(floor.Username)
+			}
 		}
 		re := regexp.MustCompile(`#anony_.{32}`)
 		for _, it := range re.FindAllString(cont, -1) {
 
 			cont = strings.ReplaceAll(cont, it, anony(it))
 		}
-
+		return cont
+	}
+	fixDice := func(cont string) string {
 		// ROLL DICE
 		// <div class='dice'><b>ROLL : 1d100</b>=d100(32)=<b>32</b></div>
-		re = regexp.MustCompile(`<div class='dice'><b>ROLL : (.+?)</b>=(.+?)=<b>(.+?)</b></div>`)
+		re := regexp.MustCompile(`<div class='dice'><b>ROLL : (.+?)</b>=(.+?)=<b>(.+?)</b></div>`)
 		for _, it := range re.FindAllStringSubmatch(cont, -1) {
 			rollSrc := it[1]
 			rollRt := it[3]
 			cont = strings.ReplaceAll(cont, it[0], fmt.Sprintf(" **【ROLL** : %s= **%s】** ", rollSrc, rollRt))
 		}
-
+		return cont
+	}
+	fixCollapse := func(cont string) string {
 		// collapse 折叠
 		// <div class="foldBox no"><div class="collapse_btn"><a href="javascript:;" onclick="collapse(this);">+</a>外层看到的 ...</div><span class="collapse_content" id="foldCnt">里面</span></div>
-		re = regexp.MustCompile(`<div class="foldBox no"><div class="collapse_btn"><a href="javascript:;" onclick="collapse\(this\);">\+</a>(.+?) ...</div><span class="collapse_content" id="foldCnt">(.+?)</span></div>`)
+		re := regexp.MustCompile(`<div class="foldBox no"><div class="collapse_btn"><a href="javascript:;" onclick="collapse\(this\);">\+</a>(.+?) ...</div><span class="collapse_content" id="foldCnt">(.+?)</span></div>`)
 		for _, it := range re.FindAllStringSubmatch(cont, -1) {
 			outTxt := it[1]
 			inTxt := it[2]
@@ -467,18 +467,10 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 
 			cont = strings.ReplaceAll(cont, it[0], rt)
 		}
-
-		// 视频
-		cont = processMedia(cont, `<span class="video">(<video[^>]*>.*?</video>)</span>`, `src="([^"]+)"`, "视频", assets, floor, tiezi, false)
-
-		// 音频
-		cont = processMedia(cont, `<span class="audio" onclick="audioClick\(event\)"> <audio src="([^"]+)"[^>]*></audio></span>`, `src="([^"]+)"`, "音频", assets, floor, tiezi, false)
-
-		// 图片
-		cont = processMedia(cont, `\[img\](.+?)\[/img\]`, "", "", assets, floor, tiezi, true)
-
-		// 表情
-		re = regexp.MustCompile(`\[s\:.+?\:.+?\]`)
+		return cont
+	}
+	fixSmile := func(cont string) string {
+		re := regexp.MustCompile(`\[s\:.+?\:.+?\]`)
 		for _, it := range re.FindAllString(cont, -1) {
 			if !CFGFILE_USE_LOCAL_SMILE_PIC {
 				cont = strings.ReplaceAll(cont, it, `![`+strings.Split(it, `:`)[2]+`(https://img4.nga.178.com/ngabbs/post/smile/`+strings.ReplaceAll(getSmile(it), `"`, ``)+`)`)
@@ -493,14 +485,11 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 				cont = strings.ReplaceAll(cont, it, `![`+strings.Split(it, `:`)[2]+`(`+final+`)`)
 			}
 		}
-
-		// 删除线
-		// 这是一个不一样的 原本是[del] [/del]（而且原来无空格）
-		cont = strings.ReplaceAll(cont, `<del class='gray'> `, `~~`)
-		cont = strings.ReplaceAll(cont, ` </del>`, `~~`)
-
+		return cont
+	}
+	fixUrl := func(cont string) string {
 		// 超链接
-		re = regexp.MustCompile(`\[url\](.+?)\[/url\]`)
+		re := regexp.MustCompile(`\[url\](.+?)\[/url\]`)
 		for _, it := range re.FindAllStringSubmatch(cont, -1) {
 			cont = strings.ReplaceAll(cont, `[url]`+it[1]+`[/url]`, `[url](`+it[1]+`)`)
 		}
@@ -508,7 +497,9 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 		for _, it := range re.FindAllStringSubmatch(cont, -1) {
 			cont = strings.ReplaceAll(cont, `[url=`+it[1]+`]`+it[2]+`[/url]`, `[`+it[2]+`](`+it[1]+`)`)
 		}
-
+		return cont
+	}
+	fixQuote := func(cont string, floor *Floor) string {
 		// 引用
 		// 下列的[b] 和[/b] 在这个接口下好像都变成了 <b> 和 </b>
 		// 圈主贴
@@ -518,7 +509,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 			// 匿名回复，没有uid
 			reg_str = `(?s)\[quote\]\[tid=.+?Post by (.+)<span .*?\((\d{4}.+?)\):</b>(.+?)\[/quote\]((?:\n){0,2})`
 		}
-		re = regexp.MustCompile(reg_str)
+		re := regexp.MustCompile(reg_str)
 		// [1]人名 [2]时间 [3]圈的内容
 		for _, it := range re.FindAllStringSubmatch(cont, -1) {
 			quoteText := strings.ReplaceAll(it[3], "\n", "\n>")
@@ -536,7 +527,9 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 				}
 			}
 			cont = strings.ReplaceAll(cont, it[0], `>[jump](#pid0) `+quoteAuthor+`(`+quoteTime+`)`+` 说: `+quoteText+"\n\n")
-			floor.AppendPid = append(floor.AppendPid, 0)
+			if floor != nil {
+				floor.AppendPid = append(floor.AppendPid, 0)
+			}
 		}
 
 		// 圈其他楼
@@ -544,7 +537,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 		// "[quote][pid=684833266,36008480,1]Reply[/pid] <b>Post by [uid=64575408]虹色的棉花糖[/uid] (2023-04-18 16:54):</b>\n\n上海呢[/quote]"
 		// [quote][pid=684810015,36006627,5]Reply[/pid] <b>Post by 庚雷尤甲项季<span class=\"gray\">(83楼)</span> (2023-04-18 15:08):</b><br/><br/>阿巴[/quote]
 		quoteCount := strings.Count(cont, "[quote]")
-		for i := 0; i < quoteCount; i++ {
+		for range quoteCount {
 			//最内层的quote下标
 			quoteStartIndex := strings.LastIndex(cont, "[quote]")
 			if quoteStartIndex < 0 {
@@ -584,14 +577,16 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 				// 这里会有原文的，就不append了
 			}
 		}
-
+		return cont
+	}
+	fixReply := func(cont string, tiezi *Tiezi, floor *Floor) string {
 		// 回复
-		reg_str = `(?s)<b>Reply to \[tid=(\d+?).+? Post by \[uid.*?\](.+)\[\/uid\].+?\((.+?)\)</b>((?:\n){0,2})`
+		reg_str := `(?s)<b>Reply to \[tid=(\d+?).+? Post by \[uid.*?\](.+)\[\/uid\].+?\((.+?)\)</b>((?:\n){0,2})`
 		if !strings.Contains(cont, "uid=") {
 			// 匿名回复，没有uid
 			reg_str = `(?s)<b>Reply to \[tid=(\d+?).+? Post by (.+)<span .+?\((.+?)\)</b>((?:\n){0,2})`
 		}
-		re = regexp.MustCompile(reg_str)
+		re := regexp.MustCompile(reg_str)
 		// 评论主楼[1]pid [2]原作者 [3]时间
 		for _, it := range re.FindAllStringSubmatch(cont, -1) {
 			quoteAuthor := it[2]
@@ -632,16 +627,79 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 				}
 			}
 			replyedText := ":"
-			if CFGFILE_ENHANCE_ORI_REPLY {
+			if tiezi != nil && CFGFILE_ENHANCE_ORI_REPLY {
+				// 正常的从fixContent来调用
 				replyedFloor := tiezi.findFloorByPid(cast.ToInt(quotePid))
 				if replyedFloor != nil {
 					replyedText = "说:\n>" + strings.ReplaceAll(replyedFloor.Content, "\n", "\n>")
 				}
+			} else if tiezi == nil {
+				// 可能是ENHANCE_ONLINE调用过来的
 			}
 
 			cont = strings.ReplaceAll(cont, it[0], `>[jump](#pid`+quotePid+`) `+quoteAuthor+`(`+quoteTime+")"+replyedText+"\n\n")
-			floor.AppendPid = append(floor.AppendPid, cast.ToInt(quotePid))
+			if floor != nil {
+				floor.AppendPid = append(floor.AppendPid, cast.ToInt(quotePid))
+			}
 		}
+		return cont
+	}
+	cont = fixReplace(cont)
+	cont = fixAnony(cont, floor)
+	cont = fixDice(cont)
+	cont = fixCollapse(cont)
+	cont = fixSmile(cont)
+	cont = fixUrl(cont)
+	cont = fixQuote(cont, floor)
+	cont = fixReply(cont, tiezi, floor)
+	return cont
+}
+
+/**
+ * @description: 由bbcode转md，以及下载图片、转化表情等
+ * @param {int} floor_i floor下标
+ * @return {*}
+ */
+func (tiezi *Tiezi) fixContent(floor_i int) {
+	/*此接口(app_api)与旧接口不太相同，有些源码格式和网页端看到的不一样！
+	 *1. 疑似匿名直接显示
+	 *2. 删除线有变
+	 *3. quote reply等，[b]变化；假如是匿名用户，就不会有 uid框框
+	 */
+	// tid int, assets *(map[string]string)
+	assets := &tiezi.Assets
+	oriFloor := &tiezi.Floors[floor_i]
+	floor := &tiezi.Floors[floor_i]
+	curCommentI := -1
+
+	// 循环尾部有判断是否有comments且是否进去的操作，请注意
+	for {
+		// 假如要获取IP位置则在此处获取
+		if CFGFILE_GET_IP_LOCATION {
+			resp, err := Client.R().SetFormData(map[string]string{
+				"uid": cast.ToString(floor.UserId),
+			}).Post("nuke.php?__lib=ucp&__act=get&__output=8")
+			if err != nil {
+				log.Println(err.Error())
+			} else {
+				value_str, err := jsonparser.GetString(resp.Bytes(), "data", "0", "ipLoc")
+				if err != nil {
+					log.Println("获取用户IP位置失败: " + err.Error())
+				} else {
+					floor.IpLocation = value_str
+				}
+			}
+		}
+		// 获取IP位置结束
+		cont := floor.Content
+		cont = fixMost(cont, tiezi, floor)
+		// 视频
+		cont = processMedia(cont, `<span class="video">(<video[^>]*>.*?</video>)</span>`, `src="([^"]+)"`, "视频", assets, floor, tiezi, false)
+		// 音频
+		cont = processMedia(cont, `<span class="audio" onclick="audioClick\(event\)"> <audio src="([^"]+)"[^>]*></audio></span>`, `src="([^"]+)"`, "音频", assets, floor, tiezi, false)
+		// 图片
+		cont = processMedia(cont, `\[img\](.+?)\[/img\]`, "", "", assets, floor, tiezi, true)
+
 		floor.Content = cont
 		//到这里，fix已经结束了
 

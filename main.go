@@ -187,6 +187,7 @@ func main() {
 	nga.CFGFILE_PAGE_DOWNLOAD_LIMIT = cfg.Section("network").Key("page_download_limit").RangeInt(100, -1, 100)
 	nga.CFGFILE_GET_IP_LOCATION = cfg.Section("post").Key("get_ip_location").MustBool()
 	nga.CFGFILE_ENHANCE_ORI_REPLY = cfg.Section("post").Key("enhance_ori_reply").MustBool()
+	nga.CFGFILE_ENHANCE_ORI_REPLY_ONLINE = cfg.Section("post").Key("enhance_ori_reply_online").MustBool()
 	nga.CFGFILE_USE_LOCAL_SMILE_PIC = cfg.Section("post").Key("use_local_smile_pic").MustBool()
 	nga.CFGFILE_LOCAL_SMILE_PIC_PATH = cfg.Section("post").Key("local_smile_pic_path").String()
 	nga.CFGFILE_USE_TITLE_AS_FOLDER_NAME = cfg.Section("post").Key("use_title_as_folder_name").MustBool()
@@ -194,6 +195,15 @@ func main() {
 	nga.CFGFILE_USE_NETWORK_MEDIA_URL = cfg.Section("post").Key("use_network_media_url").MustBool()
 	nga.CFGFILE_ASSETS_PATH = cfg.Section("post").Key("assets_path").String()
 	nga.CFGFILE_SPLIT_MD_FILE = cfg.Section("post").Key("split_md_file").RangeInt(-1, -1, 200)
+
+	// 检查一些互斥项
+	if nga.CFGFILE_ENHANCE_ORI_REPLY && nga.CFGFILE_THREAD_COUNT > 1 {
+		log.Fatalln("配置项互斥检查失败，请检查", "enhance_ori_reply", "thread")
+	}
+	if nga.CFGFILE_ENHANCE_ORI_REPLY_ONLINE && !nga.CFGFILE_ENHANCE_ORI_REPLY {
+		log.Fatalln("配置项互斥检查失败，请检查", "enhance_ori_reply_online", "enhance_ori_reply")
+	}
+
 	nga.Client = nga.NewNgaClient()
 
 	tie := nga.Tiezi{}
