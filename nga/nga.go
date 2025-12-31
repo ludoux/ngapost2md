@@ -41,7 +41,7 @@ var (
 
 // 这里配置文件和传参都没法改
 var (
-	VERSION  = "1.9.0"      //需要手动改
+	VERSION  = "1.10.0"     //需要手动改
 	BUILD_TS = "1691664141" //无需，GitHub actions会自动填写
 	GIT_REF  = ""           //无需，GitHub actions会自动填写
 	GIT_HASH = ""           //无需，GitHub actions会自动填写
@@ -395,12 +395,14 @@ func (tiezi *Tiezi) findFloorByPid(pid int) *Floor {
 		code, _ := jsonparser.GetInt(resp.Bytes(), "code")
 		if code != 0 {
 			msg, _ := jsonparser.GetString(resp.Bytes(), "msg")
-			log.Fatalln("获取回复内容失败 nga返回代码不为0:", code, msg)
+			log.Println("获取回复内容失败 nga返回代码不为0:", code, msg)
+			return &Floor{Content: fmt.Sprint(pid, "获取回复内容失败 nga返回代码不为0:", code, msg)}
 		}
 		// 解析返回的楼层数据
 		value_byte, dataType, _, _ := jsonparser.Get(resp.Bytes(), "result")
 		if dataType == jsonparser.NotExist {
-			log.Fatalln("获取回复内容失败，result不存在")
+			log.Println("获取回复内容失败，result不存在")
+			return &Floor{Content: fmt.Sprint(pid, "获取回复内容失败 result不存在")}
 		}
 		content, err := jsonparser.GetString(value_byte, "[0]", "content")
 		if err != nil {
