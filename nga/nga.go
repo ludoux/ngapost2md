@@ -700,7 +700,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 		// 音频
 		cont = processMedia(cont, `<span class="audio" onclick="audioClick\(event\)"> <audio src="([^"]+)"[^>]*></audio></span>`, `src="([^"]+)"`, "音频", assets, floor, tiezi, false)
 		// 图片
-		cont = processMedia(cont, `\[img\](.+?)\[/img\]`, "", "", assets, floor, tiezi, true)
+		cont = processMedia(cont, `\[img\](.+?)\[/img\]`, "", "图片", assets, floor, tiezi, true)
 
 		floor.Content = cont
 		//到这里，fix已经结束了
