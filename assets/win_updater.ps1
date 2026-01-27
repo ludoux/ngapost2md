@@ -35,7 +35,7 @@ function Check-Local-Version() {
     if (Test-Path $FilePath) {
         $output = cmd /c $FilePath "--version" 2`>`&1
         $ver = $output -split " "
-        return $ver[1]
+        return $ver[3]
     } else {
         Write-Host "No ngapost2md found!"
         return "not_found"
