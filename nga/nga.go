@@ -120,7 +120,7 @@ func processMedia(content string, pattern string, urlPattern string, mediaType s
 			if !ok {
 				mutex.Unlock()
 				time.Sleep(time.Millisecond * time.Duration(DELAY_MS))
-				log.Println("下载", mediaType, ":", fileName)
+				log.Printf("下载%s: %s\n", mediaType, fileName)
 				// 确保目录存在
 				assetDir := filepath.Join(".", tiezi.GetNeededFolderName(), CFGFILE_ASSETS_PATH)
 				os.MkdirAll(assetDir, os.ModePerm)
@@ -131,6 +131,8 @@ func processMedia(content string, pattern string, urlPattern string, mediaType s
 			}
 			// 更新引用路径
 			relativePath := filepath.Join(".", CFGFILE_ASSETS_PATH, fileName)
+			// markdown 应该都是用 "/" 斜杠
+			relativePath = strings.ReplaceAll(relativePath, `\`, `/`)
 			if isImage {
 				replacement = fmt.Sprintf(`![img](%s)`, relativePath)
 			} else {
@@ -484,6 +486,8 @@ func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
 					smile_name = smile_name + ".png"
 				}
 				final := filepath.Join(CFGFILE_LOCAL_SMILE_PIC_PATH, smile_name)
+				// markdown 应该都是用 "/" 斜杠
+				final = strings.ReplaceAll(final, `\`, `/`)
 				cont = strings.ReplaceAll(cont, it, `![`+strings.Split(it, `:`)[2]+`(`+final+`)`)
 			}
 		}
