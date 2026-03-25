@@ -41,7 +41,7 @@ var (
 
 // 这里配置文件和传参都没法改
 var (
-	VERSION  = "1.10.1"     //需要手动改
+	VERSION  = "1.10.2"     //需要手动改
 	BUILD_TS = "1691664141" //无需，GitHub actions会自动填写
 	GIT_REF  = ""           //无需，GitHub actions会自动填写
 	GIT_HASH = ""           //无需，GitHub actions会自动填写
