@@ -63,16 +63,38 @@ var (
 	 */
 )
 
+// 预编译正则表达式
+var (
+	reVideoContent = regexp.MustCompile(`<span class="video">(<video[^>]*>.*?</video>)</span>`)
+	reVideoSrc     = regexp.MustCompile(`src="([^"]+)"`)
+	reAudioContent = regexp.MustCompile(`<span class="audio" onclick="audioClick\(event\)"> <audio src="([^"]+)"[^>]*></audio></span>`)
+	reImgContent   = regexp.MustCompile(`\[img\](.+?)\[/img\]`)
+
+	reAnony    = regexp.MustCompile(`#anony_.{32}`)
+	reDice     = regexp.MustCompile(`<div class='dice'><b>ROLL : (.+?)</b>=(.+?)=<b>(.+?)</b></div>`)
+	reCollapse = regexp.MustCompile(`<div class="foldBox no"><div class="collapse_btn"><a href="javascript:;" onclick="collapse\(this\);">\+</a>(.+?) ...</div><span class="collapse_content" id="foldCnt">(.+?)</span></div>`)
+	reSmile    = regexp.MustCompile(`\[s\:.+?\:.+?\]`)
+	reUrl1     = regexp.MustCompile(`\[url\](.+?)\[/url\]`)
+	reUrl2     = regexp.MustCompile(`\[url=(.+?)\](.+?)\[/url\]`)
+
+	reQuoteMainWithUid  = regexp.MustCompile(`(?s)\[quote\]\[tid=.+?Post by \[uid.*?\](.+)\[\/uid\].*?\((\d{4}.+?)\):</b>(.+?)\[/quote\]((?:\n){0,2})`)
+	reQuoteMainNoUid    = regexp.MustCompile(`(?s)\[quote\]\[tid=.+?Post by (.+)<span .*?\((\d{4}.+?)\):</b>(.+?)\[/quote\]((?:\n){0,2})`)
+	reQuoteOtherWithUid = regexp.MustCompile(`(?s)\[quote\]\[pid=(\d+?),.+?Post by \[uid.*?\](.+)\[\/uid\].*?\((\d{4}.+?)\):</b>(.+?)\[/quote\]((?:\n){0,2})`)
+	reQuoteOtherNoUid   = regexp.MustCompile(`(?s)\[quote\]\[pid=(\d+?),.+?Post by (.+)<span .*?\((\d{4}.+?)\):</b>(.+?)\[/quote\]((?:\n){0,2})`)
+
+	reReplyTidWithUid = regexp.MustCompile(`(?s)<b>Reply to \[tid=(\d+?).+? Post by \[uid.*?\](.+)\[\/uid\].+?\((.+?)\)</b>((?:\n){0,2})`)
+	reReplyTidNoUid   = regexp.MustCompile(`(?s)<b>Reply to \[tid=(\d+?).+? Post by (.+)<span .+?\((.+?)\)</b>((?:\n){0,2})`)
+	reReplyPidWithUid = regexp.MustCompile(`(?s)<b>Reply to \[pid=(\d+?),.+? Post by \[uid.*?\](.+)\[\/uid\].+?\((.+?)\)</b>((?:\n){0,2})`)
+	reReplyPidNoUid   = regexp.MustCompile(`(?s)<b>Reply to \[pid=(\d+?),.+? Post by (.+)<span .+?\((.+?)\)</b>((?:\n){0,2})`)
+)
+
 // 通用媒体文件处理函数
-func processMedia(content string, pattern string, urlPattern string, mediaType string, assets *map[string]string, floor *Floor, tiezi *Tiezi, isImage bool) string {
-	re := regexp.MustCompile(pattern)
-	for _, match := range re.FindAllStringSubmatch(content, -1) {
+func processMedia(content string, contentRe *regexp.Regexp, srcRe *regexp.Regexp, mediaType string, assets *map[string]string, floor *Floor, tiezi *Tiezi, isImage bool) string {
+	for _, match := range contentRe.FindAllStringSubmatch(content, -1) {
 		var url string
 		var fullMatch string
 
-		if urlPattern != "" {
-			// 如果需要从标签中提取URL
-			srcRe := regexp.MustCompile(urlPattern)
+		if srcRe != nil {
 			srcMatches := srcRe.FindStringSubmatch(match[0])
 			if len(srcMatches) < 2 {
 				continue
@@ -80,14 +102,13 @@ func processMedia(content string, pattern string, urlPattern string, mediaType s
 			url = srcMatches[1]
 			fullMatch = match[0]
 		} else {
-			// 如果match[1]就是URL。目前仅是img模式
 			url = match[1]
 			fullMatch = `[img]` + match[1] + `[/img]`
 		}
 
 		// 如果是图片，需要特殊处理URL格式
 		if isImage {
-			if url[0:2] == "./" {
+			if len(url) >= 2 && url[0:2] == "./" {
 				url = "https://img.nga.178.com/attachments/" + url[2:]
 			}
 			url = strings.ReplaceAll(url, ".medium.jpg", "")
@@ -103,7 +124,8 @@ func processMedia(content string, pattern string, urlPattern string, mediaType s
 		} else {
 			sha := sha256.Sum256([]byte(url))
 			shaStr := hex.EncodeToString(sha[:])
-			shorted := shaStr[2:8] + url[len(url)-6:]
+			suffixLen := min(6, len(url))
+			shorted := shaStr[2:8] + url[len(url)-suffixLen:]
 			var fileName string
 
 			mutex.Lock()
@@ -258,7 +280,7 @@ func (tiezi *Tiezi) page(page int) {
 		}).Post("app_api.php?__lib=post&__act=list")
 	}
 	if err != nil {
-		log.Println(err.Error())
+		log.Fatalln(err.Error())
 	}
 	code, _ := jsonparser.GetInt(resp.Bytes(), "code")
 	if code != 0 {
@@ -380,9 +402,9 @@ func (tiezi *Tiezi) init(tid int, authorId int) {
  * @return {*}
  */
 func (tiezi *Tiezi) findFloorByPid(pid int) *Floor {
-	for _, v := range tiezi.Floors {
-		if v.Pid == pid {
-			return &v
+	for i := range tiezi.Floors {
+		if tiezi.Floors[i].Pid == pid {
+			return &tiezi.Floors[i]
 		}
 	}
 	if CFGFILE_ENHANCE_ORI_REPLY_ONLINE {
@@ -442,9 +464,7 @@ func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
 				floor.Username = anony(floor.Username)
 			}
 		}
-		re := regexp.MustCompile(`#anony_.{32}`)
-		for _, it := range re.FindAllString(cont, -1) {
-
+		for _, it := range reAnony.FindAllString(cont, -1) {
 			cont = strings.ReplaceAll(cont, it, anony(it))
 		}
 		return cont
@@ -452,8 +472,7 @@ func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
 	fixDice := func(cont string) string {
 		// ROLL DICE
 		// <div class='dice'><b>ROLL : 1d100</b>=d100(32)=<b>32</b></div>
-		re := regexp.MustCompile(`<div class='dice'><b>ROLL : (.+?)</b>=(.+?)=<b>(.+?)</b></div>`)
-		for _, it := range re.FindAllStringSubmatch(cont, -1) {
+		for _, it := range reDice.FindAllStringSubmatch(cont, -1) {
 			rollSrc := it[1]
 			rollRt := it[3]
 			cont = strings.ReplaceAll(cont, it[0], fmt.Sprintf(" **【ROLL** : %s= **%s】** ", rollSrc, rollRt))
@@ -463,8 +482,7 @@ func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
 	fixCollapse := func(cont string) string {
 		// collapse 折叠
 		// <div class="foldBox no"><div class="collapse_btn"><a href="javascript:;" onclick="collapse(this);">+</a>外层看到的 ...</div><span class="collapse_content" id="foldCnt">里面</span></div>
-		re := regexp.MustCompile(`<div class="foldBox no"><div class="collapse_btn"><a href="javascript:;" onclick="collapse\(this\);">\+</a>(.+?) ...</div><span class="collapse_content" id="foldCnt">(.+?)</span></div>`)
-		for _, it := range re.FindAllStringSubmatch(cont, -1) {
+		for _, it := range reCollapse.FindAllStringSubmatch(cont, -1) {
 			outTxt := it[1]
 			inTxt := it[2]
 			rt := fmt.Sprintf("<details>\n  <summary>%s</summary>\n  <pre>%s</pre>\n</details>", outTxt, strings.ReplaceAll(inTxt, "\n", "<br>"))
@@ -474,8 +492,7 @@ func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
 		return cont
 	}
 	fixSmile := func(cont string) string {
-		re := regexp.MustCompile(`\[s\:.+?\:.+?\]`)
-		for _, it := range re.FindAllString(cont, -1) {
+		for _, it := range reSmile.FindAllString(cont, -1) {
 			if !CFGFILE_USE_LOCAL_SMILE_PIC {
 				cont = strings.ReplaceAll(cont, it, `![`+strings.Split(it, `:`)[2]+`(https://img4.nga.178.com/ngabbs/post/smile/`+strings.ReplaceAll(getSmile(it), `"`, ``)+`)`)
 			} else {
@@ -495,12 +512,10 @@ func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
 	}
 	fixUrl := func(cont string) string {
 		// 超链接
-		re := regexp.MustCompile(`\[url\](.+?)\[/url\]`)
-		for _, it := range re.FindAllStringSubmatch(cont, -1) {
+		for _, it := range reUrl1.FindAllStringSubmatch(cont, -1) {
 			cont = strings.ReplaceAll(cont, `[url]`+it[1]+`[/url]`, `[url](`+it[1]+`)`)
 		}
-		re = regexp.MustCompile(`\[url=(.+?)\](.+?)\[/url\]`)
-		for _, it := range re.FindAllStringSubmatch(cont, -1) {
+		for _, it := range reUrl2.FindAllStringSubmatch(cont, -1) {
 			cont = strings.ReplaceAll(cont, `[url=`+it[1]+`]`+it[2]+`[/url]`, `[`+it[2]+`](`+it[1]+`)`)
 		}
 		return cont
@@ -510,12 +525,12 @@ func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
 		// 下列的[b] 和[/b] 在这个接口下好像都变成了 <b> 和 </b>
 		// 圈主贴
 		// (?s) 意思单行模式
-		reg_str := `(?s)\[quote\]\[tid=.+?Post by \[uid.*?\](.+)\[\/uid\].*?\((\d{4}.+?)\):</b>(.+?)\[/quote\]((?:\n){0,2})`
-		if !strings.Contains(cont, "uid=") {
-			// 匿名回复，没有uid
-			reg_str = `(?s)\[quote\]\[tid=.+?Post by (.+)<span .*?\((\d{4}.+?)\):</b>(.+?)\[/quote\]((?:\n){0,2})`
+		var re *regexp.Regexp
+		if strings.Contains(cont, "uid=") {
+			re = reQuoteMainWithUid
+		} else {
+			re = reQuoteMainNoUid
 		}
-		re := regexp.MustCompile(reg_str)
 		// [1]人名 [2]时间 [3]圈的内容
 		for _, it := range re.FindAllStringSubmatch(cont, -1) {
 			quoteText := strings.ReplaceAll(it[3], "\n", "\n>")
@@ -525,9 +540,9 @@ func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
 				quoteAuthor = anony(quoteAuthor)
 			} else {
 				// 拼一下，以拿到uid
-				reg_str = `\[uid=(\d+?)\]` + regexp.QuoteMeta(quoteAuthor) + `\[\/uid\]`
-				re = regexp.MustCompile(reg_str)
-				it := re.FindStringSubmatch(cont)
+				reg_str := `\[uid=(\d+?)\]` + regexp.QuoteMeta(quoteAuthor) + `\[\/uid\]`
+				uidRe := regexp.MustCompile(reg_str)
+				it := uidRe.FindStringSubmatch(cont)
 				if len(it) >= 2 {
 					quoteAuthor = fmt.Sprintf("%s(%s)", quoteAuthor, it[1])
 				}
@@ -544,23 +559,23 @@ func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
 		// [quote][pid=684810015,36006627,5]Reply[/pid] <b>Post by 庚雷尤甲项季<span class=\"gray\">(83楼)</span> (2023-04-18 15:08):</b><br/><br/>阿巴[/quote]
 		quoteCount := strings.Count(cont, "[quote]")
 		for range quoteCount {
-			//最内层的quote下标
 			quoteStartIndex := strings.LastIndex(cont, "[quote]")
 			if quoteStartIndex < 0 {
 				break
 			}
-			quoteEndIndex := quoteStartIndex + strings.Index(cont[quoteStartIndex:], "[/quote]")
-			if quoteEndIndex < 0 || quoteStartIndex >= quoteEndIndex+8 {
+			endIdx := strings.Index(cont[quoteStartIndex:], "[/quote]")
+			if endIdx < 0 {
 				break
 			}
+			quoteEndIndex := quoteStartIndex + endIdx
 			clip := cont[quoteStartIndex : quoteEndIndex+8]
 
-			reg_str := `(?s)\[quote\]\[pid=(\d+?),.+?Post by \[uid.*?\](.+)\[\/uid\].*?\((\d{4}.+?)\):</b>(.+?)\[/quote\]((?:\n){0,2})`
-			if !strings.Contains(clip, "uid=") {
-				// 匿名回复，没有uid
-				reg_str = `(?s)\[quote\]\[pid=(\d+?),.+?Post by (.+)<span .*?\((\d{4}.+?)\):</b>(.+?)\[/quote\]((?:\n){0,2})`
+			var re *regexp.Regexp
+			if strings.Contains(clip, "uid=") {
+				re = reQuoteOtherWithUid
+			} else {
+				re = reQuoteOtherNoUid
 			}
-			re = regexp.MustCompile(reg_str)
 			// [1]pid [2]原作者 [3]时间 [4]说的东西
 			for _, it := range re.FindAllStringSubmatch(clip, -1) {
 				cont = strings.ReplaceAll(cont, `[url=`+it[1]+`]`+it[2]+`[/url]`, `[`+it[2]+`](`+it[1]+`)`)
@@ -572,9 +587,9 @@ func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
 					quoteAuthor = anony(quoteAuthor)
 				} else {
 					// 拼一下，以拿到uid
-					reg_str = `\[uid=(\d+?)\]` + regexp.QuoteMeta(quoteAuthor) + `\[\/uid\]`
-					re = regexp.MustCompile(reg_str)
-					it := re.FindStringSubmatch(cont)
+					reg_str := `\[uid=(\d+?)\]` + regexp.QuoteMeta(quoteAuthor) + `\[\/uid\]`
+					uidRe := regexp.MustCompile(reg_str)
+					it := uidRe.FindStringSubmatch(cont)
 					if len(it) >= 2 {
 						quoteAuthor = fmt.Sprintf("%s(%s)", quoteAuthor, it[1])
 					}
@@ -587,12 +602,12 @@ func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
 	}
 	fixReply := func(cont string, tiezi *Tiezi, floor *Floor) string {
 		// 回复
-		reg_str := `(?s)<b>Reply to \[tid=(\d+?).+? Post by \[uid.*?\](.+)\[\/uid\].+?\((.+?)\)</b>((?:\n){0,2})`
-		if !strings.Contains(cont, "uid=") {
-			// 匿名回复，没有uid
-			reg_str = `(?s)<b>Reply to \[tid=(\d+?).+? Post by (.+)<span .+?\((.+?)\)</b>((?:\n){0,2})`
+		var re *regexp.Regexp
+		if strings.Contains(cont, "uid=") {
+			re = reReplyTidWithUid
+		} else {
+			re = reReplyTidNoUid
 		}
-		re := regexp.MustCompile(reg_str)
 		// 评论主楼[1]pid [2]原作者 [3]时间
 		for _, it := range re.FindAllStringSubmatch(cont, -1) {
 			quoteAuthor := it[2]
@@ -601,21 +616,20 @@ func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
 				quoteAuthor = anony(quoteAuthor)
 			} else {
 				// 拼一下，以拿到uid
-				reg_str = `\[uid=(\d+?)\]` + regexp.QuoteMeta(quoteAuthor) + `\[\/uid\]`
-				re = regexp.MustCompile(reg_str)
-				it := re.FindStringSubmatch(cont)
+				reg_str := `\[uid=(\d+?)\]` + regexp.QuoteMeta(quoteAuthor) + `\[\/uid\]`
+				uidRe := regexp.MustCompile(reg_str)
+				it := uidRe.FindStringSubmatch(cont)
 				if len(it) >= 2 {
 					quoteAuthor = fmt.Sprintf("%s(%s)", quoteAuthor, it[1])
 				}
 			}
 			cont = strings.ReplaceAll(cont, it[0], `>[jump](#pid0) `+quoteAuthor+`(`+quoteTime+"):\n\n")
 		}
-		reg_str = `(?s)<b>Reply to \[pid=(\d+?),.+? Post by \[uid.*?\](.+)\[\/uid\].+?\((.+?)\)</b>((?:\n){0,2})`
-		if !strings.Contains(cont, "uid=") {
-			// 匿名回复，没有uid
-			reg_str = `(?s)<b>Reply to \[pid=(\d+?),.+? Post by (.+)<span .+?\((.+?)\)</b>((?:\n){0,2})`
+		if strings.Contains(cont, "uid=") {
+			re = reReplyPidWithUid
+		} else {
+			re = reReplyPidNoUid
 		}
-		re = regexp.MustCompile(reg_str)
 		// [1]pid [2]原作者 [3]时间
 		for _, it := range re.FindAllStringSubmatch(cont, -1) {
 			quotePid := it[1]
@@ -625,9 +639,9 @@ func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
 				quoteAuthor = anony(quoteAuthor)
 			} else {
 				// 拼一下，以拿到uid
-				reg_str = `\[uid=(\d+?)\]` + regexp.QuoteMeta(quoteAuthor) + `\[\/uid\]`
-				re = regexp.MustCompile(reg_str)
-				it := re.FindStringSubmatch(cont)
+				reg_str := `\[uid=(\d+?)\]` + regexp.QuoteMeta(quoteAuthor) + `\[\/uid\]`
+				uidRe := regexp.MustCompile(reg_str)
+				it := uidRe.FindStringSubmatch(cont)
 				if len(it) >= 2 {
 					quoteAuthor = fmt.Sprintf("%s(%s)", quoteAuthor, it[1])
 				}
@@ -700,11 +714,11 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 		cont := floor.Content
 		cont = fixMost(cont, tiezi, floor)
 		// 视频
-		cont = processMedia(cont, `<span class="video">(<video[^>]*>.*?</video>)</span>`, `src="([^"]+)"`, "视频", assets, floor, tiezi, false)
+		cont = processMedia(cont, reVideoContent, reVideoSrc, "视频", assets, floor, tiezi, false)
 		// 音频
-		cont = processMedia(cont, `<span class="audio" onclick="audioClick\(event\)"> <audio src="([^"]+)"[^>]*></audio></span>`, `src="([^"]+)"`, "音频", assets, floor, tiezi, false)
+		cont = processMedia(cont, reAudioContent, reVideoSrc, "音频", assets, floor, tiezi, false)
 		// 图片
-		cont = processMedia(cont, `\[img\](.+?)\[/img\]`, "", "图片", assets, floor, tiezi, true)
+		cont = processMedia(cont, reImgContent, nil, "图片", assets, floor, tiezi, true)
 
 		floor.Content = cont
 		//到这里，fix已经结束了
@@ -974,12 +988,10 @@ func (tiezi *Tiezi) SaveAssetsMap() {
 	if err != nil {
 		log.Fatalln("将附件转化为 Json 格式失败:", err.Error())
 	}
-	f, _ := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0666)
-	_, err = f.Write(result)
+	err = os.WriteFile(fileName, result, 0666)
 	if err != nil {
 		log.Fatalln("保存 assets.json 文件失败:", err.Error())
 	}
-	defer f.Close()
 }
 
 func (tiezi *Tiezi) Download() {
