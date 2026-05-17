@@ -31,45 +31,48 @@ type Repo struct {
 }
 
 func checkUpdate() {
-	resp, _ := req.C().R().Get("https://api.github.com/repos/ludoux/ngapost2md/releases/latest")
-
-	// 读取最新版本号
-	var repo Repo
-	err := json.Unmarshal([]byte(resp.String()), &repo)
+	resp, err := req.C().R().Get("https://api.github.com/repos/ludoux/ngapost2md/releases/latest")
 	if err != nil {
-		fmt.Println("解析json数据失败:", err)
+		log.Fatalln("检查更新失败:", err)
 	}
 
-	// 输出信息
-	log.Printf("目前版本: %s 最新版本: %s", nga.VERSION, repo.Tag_name)
-	log.Fatalln("请去 GitHub Releases 页面下载最新版本。软件即将退出……")
+	var repo Repo
+	err = json.Unmarshal([]byte(resp.String()), &repo)
+	if err != nil {
+		log.Fatalln("解析json数据失败:", err)
+	}
 
+	log.Printf("目前版本: %s 最新版本: %s", nga.VERSION, repo.Tag_name)
+	if repo.Tag_name != nga.VERSION {
+		log.Fatalln("请去 GitHub Releases 页面下载最新版本。软件即将退出……")
+	} else {
+		log.Println("当前已是最新版本。")
+	}
 }
+
+var (
+	reReadPhp  = regexp.MustCompile(`read\.php\?(.*$)`)
+	reTid      = regexp.MustCompile(`tid=(\d+)`)
+	reAuthorId = regexp.MustCompile(`authorid=(\d+)`)
+)
 
 // 从链接中提取tid和authorid
 func extractTidAndAuthorIdFromUrl(url string) (int, int) {
-	// 匹配 read.php 后的参数，域名可能变化
-	re := regexp.MustCompile(`read\.php\?(.*$)`)
-	matches := re.FindStringSubmatch(url)
+	matches := reReadPhp.FindStringSubmatch(url)
 	if len(matches) < 2 {
 		return 0, 0
 	}
 
-	// 解析参数
 	params := matches[1]
 	tid := 0
 	authorId := 0
 
-	// 提取tid
-	tidRe := regexp.MustCompile(`tid=(\d+)`)
-	tidMatches := tidRe.FindStringSubmatch(params)
+	tidMatches := reTid.FindStringSubmatch(params)
 	if len(tidMatches) > 1 {
 		tid = cast.ToInt(tidMatches[1])
 	}
 
-	// 提取authorid
-	authorIdRe := regexp.MustCompile(`authorid=(\d+)`)
-	authorIdMatches := authorIdRe.FindStringSubmatch(params)
+	authorIdMatches := reAuthorId.FindStringSubmatch(params)
 	if len(authorIdMatches) > 1 {
 		authorId = cast.ToInt(authorIdMatches[1])
 	}

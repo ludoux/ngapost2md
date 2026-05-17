@@ -5,12 +5,12 @@ go 1.25.0
 toolchain go1.25.5
 
 require (
-	github.com/buger/jsonparser v1.1.2
+	github.com/buger/jsonparser v1.2.0
 	github.com/imroc/req/v3 v3.57.0
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/panjf2000/ants/v2 v2.12.0
 	github.com/spf13/cast v1.10.0
-	gopkg.in/ini.v1 v1.67.1
+	gopkg.in/ini.v1 v1.67.2
 )
 
 require (

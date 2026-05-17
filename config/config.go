@@ -100,7 +100,7 @@ func GetConfigAutoUpdate() (*ini.File, error) {
 		}
 		log.Println("配置文件已由", localCfgVersion, "自动更新至", latestCfgVersion, "，请查看引入的新功能特性。部分注释可能被移除或更改。")
 	}
-	return cfg, nil
+	return defaultcfg, nil
 }
 
 func genDefaultConfig() *ini.File {
