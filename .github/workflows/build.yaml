@@ -76,6 +76,8 @@ jobs:
         exclude:
           - goarch: arm64
             goos: windows
+          - goarch: amd64
+            goos: darwin
     steps:
     - name: Checkout
       uses: actions/checkout@v6
