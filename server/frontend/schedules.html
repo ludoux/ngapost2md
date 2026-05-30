@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ngapost2md - 定时任务</title>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/picocss/2.1.1/pico.min.css">
+    <style>:root { --pico-container-max-width: 60rem; --pico-font-size: 100%; }</style>
+</head>
+<body>
+    <nav class="container">
+        <ul><li style="display:flex;align-items:center;gap:0.4rem"><strong>ngapost2md</strong><small id="app-version" style="color:var(--pico-muted-color);font-weight:normal"></small><a href="https://github.com/ludoux/ngapost2md" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a></li></ul>
+        <ul>
+            <li><a href="/index.html">下载帖子</a></li>
+            <li><a href="/posts.html">帖子列表</a></li>
+            <li><a href="/schedules.html" class="contrast">定时任务 <sup style="color:#e65100;font-size:0.65em;font-weight:bold">BETA</sup></a></li>
+            <li><a href="/config.html">配置</a></li>
+            <li><a href="#" onclick="logout()" style="color:var(--pico-muted-color)">登出</a></li>
+        </ul>
+    </nav>
+    <main class="container">
+        <article style="background:var(--pico-muted-background);border-left:4px solid #e65100">
+            <small style="color:#e65100"><strong>BETA 尝鲜功能</strong> — 定时任务功能仅供尝鲜，未经测试，若有问题请在 <a href="https://github.com/ludoux/ngapost2md/issues" target="_blank" rel="noopener">GitHub Issues</a> 反馈。</small>
+        </article>
+        <article>
+            <header><strong>定时任务列表</strong></header>
+            <button class="secondary" onclick="loadSchedules()">重载</button>
+            <table id="schedules-table">
+                <thead>
+                    <tr><th>ID</th><th>tid</th><th>Cron</th><th>下次执行</th><th>上次执行</th><th>上次状态</th><th>启用</th><th>操作</th></tr>
+                </thead>
+                <tbody id="schedules-body"></tbody>
+            </table>
+        </article>
+        <article>
+            <header><strong>新增定时任务</strong></header>
+            <form id="add-form">
+                <label>选择帖子
+                    <select id="post-select"></select>
+                </label>
+                <label>Cron 表达式
+                    <input type="text" id="cron-input" placeholder="0 9 * * 1-5" required>
+                </label>
+                <small>常用模板:
+                    <button type="button" class="outline cron-template" onclick="setCron('0 9 * * *', this)">每天9点</button>
+                    <button type="button" class="outline cron-template" onclick="setCron('0 9 * * 1-5', this)">工作日9点</button>
+                    <button type="button" class="outline cron-template" onclick="setCron('0 * * * *', this)">每小时</button>
+                </small>
+                <button type="submit">创建</button>
+            </form>
+        </article>
+    </main>
+    <script>
+    async function checkAuth() {
+        const res = await fetch('/api/tasks');
+        if (res.status === 401) { window.location.href = '/login.html'; return false; }
+        return true;
+    }
+
+    async function logout() {
+        await fetch('/api/logout', { method: 'POST' });
+        window.location.href = '/login.html';
+    }
+
+    function setCron(expr, btn) {
+        document.getElementById('cron-input').value = expr;
+        document.querySelectorAll('.cron-template').forEach(b => b.classList.remove('contrast'));
+        btn.classList.add('contrast');
+    }
+
+    document.getElementById('cron-input').addEventListener('input', function() {
+        document.querySelectorAll('.cron-template').forEach(b => b.classList.remove('contrast'));
+    });
+
+    async function loadSchedules() {
+        const res = await fetch('/api/schedules');
+        const schedules = await res.json();
+        const tbody = document.getElementById('schedules-body');
+        tbody.innerHTML = '';
+        schedules.forEach(s => {
+            tbody.innerHTML += `<tr>
+                <td>${s.id}</td>
+                <td>${s.tid}</td>
+                <td>${s.cron}</td>
+                <td>${s.nextRunTime || '-'}</td>
+                <td>${s.lastRunTime || '-'}</td>
+                <td>${s.lastRunStatus || '-'}</td>
+                <td>${s.enabled ? '是' : '否'}</td>
+                <td>
+                    <button class="primary outline" onclick="toggleSchedule('${s.id}', ${!s.enabled})">${s.enabled ? '禁用' : '启用'}</button>
+                    <button class="secondary outline" onclick="deleteSchedule('${s.id}')">删除</button>
+                </td>
+            </tr>`;
+        });
+        if (schedules.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8">暂无定时任务</td></tr>';
+        }
+    }
+
+    async function loadPosts() {
+        const res = await fetch('/api/posts');
+        const posts = await res.json();
+        const select = document.getElementById('post-select');
+        select.innerHTML = '';
+        posts.forEach(p => {
+            select.innerHTML += `<option value="${p.tid}">${p.tid} - ${p.title}</option>`;
+        });
+    }
+
+    document.getElementById('add-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const tid = parseInt(document.getElementById('post-select').value);
+        const cron = document.getElementById('cron-input').value;
+
+        const res = await fetch('/api/schedules', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tid, authorId: 0, cron })
+        });
+
+        if (res.ok) {
+            alert('定时任务已创建');
+            loadSchedules();
+        } else {
+            const err = await res.json();
+            alert(err.error || '创建失败');
+        }
+    });
+
+    async function toggleSchedule(id, enabled) {
+        const res = await fetch(`/api/schedules/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled })
+        });
+        if (res.ok) { loadSchedules(); } else { const err = await res.json(); alert(err.error); }
+    }
+
+    async function deleteSchedule(id) {
+        if (!confirm('确认删除此定时任务？')) return;
+        const res = await fetch(`/api/schedules/${id}`, { method: 'DELETE' });
+        if (res.ok) { loadSchedules(); } else { const err = await res.json(); alert(err.error); }
+    }
+
+    checkAuth().then(function(ok) { if (ok) { loadSchedules(); loadPosts(); } });
+    </script>
+    <script>fetch('/api/version').then(function(r){return r.json()}).then(function(d){var e=document.getElementById('app-version');if(e)e.textContent='v'+d.version}).catch(function(){})</script>
+</body>
+</html>

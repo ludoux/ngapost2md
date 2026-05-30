@@ -1,4 +1,4 @@
-# ngapost2md ver.[NEO_1.10.3]
+# ngapost2md ver.[NEO_2.0.0]
 
 ngapost2md 是一个将 NGA 论坛帖子转换为 Markdown 格式的工具。它支持快速爬楼并存储回复人、时间和内容，同时支持保存正文图片。
 
@@ -42,6 +42,7 @@ windows
 ngapost2md github.com/ludoux/ngapost2md
 使用: ngapost2md tid [--authorid aid]
 或:  ngapost2md url [--authorid aid]
+或:  ngapost2md serve [--host ip] [--port port] [--password pwd] [--no-ui]
 选项与参数说明: 
 tid: 待下载的帖子 tid 号
 url: NGA帖子的链接，例如: https://nga.178.com/read.php?tid=123&authorid=456
@@ -92,6 +93,80 @@ ngapost2md --gen-config-file 生成默认配置文件于 config.ini 并退出
 - ~~collapse 折叠 （[#10](https://github.com/ludoux/ngapost2md/issues/10)）~~ 目前 Go 版本不支持
 - 字体颜色啊大小之类的格式
 - 表格之类的复杂排版
+
+## Server 模式
+
+ngapost2md 支持以 HTTP Server 模式运行，提供 Web 前端界面和 REST API，方便远程管理和定时任务。
+
+### 启动 Server
+
+```
+./ngapost2md serve [--host 0.0.0.0] [--port 8080] [--password your_password] [--no-ui]
+```
+
+| 参数 | 简写 | 默认值 | 说明 |
+|---|---|---|---|
+| `--host` | | `0.0.0.0` | 绑定 IP，也可在 config.ini `[server].host` 中配置 |
+| `--port` | `-p` | `8080` | 监听端口，也可在 config.ini `[server].port` 中配置 |
+| `--password` | | 从 config.ini `[server].password` 读取 | Basic Auth 密码，**未设置时自动生成并写入 config.ini** |
+| `--no-ui` | | `false` | 禁用 Web 前端，仅提供 API |
+
+密码优先级：`--password` 命令行参数 > `config.ini` `[server].password`。若两者均未设置，程序将自动生成一个随机密码并保存到 config.ini。
+
+启动后浏览器访问 `http://localhost:8080`，用户名 `admin`，密码为上述设置的密码。
+
+### 认证方式
+
+- **Session Cookie（Web 前端）**：通过登录页 `/login.html` 登录，服务端维持 72 小时有效的 session，Cookie 名称 `ngapost2md_session`
+- **Basic Auth（API 客户端）**：用户名固定 `admin`，密码同上
+- **WebSocket**：支持 Session Cookie（浏览器自动携带）或 URL 参数 `?token=base64(admin:password)`
+- **公开路由**（无需认证）：`POST /api/login`、`POST /api/logout`、`GET /api/version`、`/login.html`
+
+### 前端页面
+
+- **下载帖子**：输入 tid 或 NGA URL，实时查看下载进度（WebSocket 推送）
+- **帖子列表**：查看所有已下载帖子，支持一键增量更新
+- **定时任务**：创建 cron 定时更新任务，支持常用模板（每天9点、工作日9点等）
+- **配置管理**：在线查看和修改 config.ini（`server.password` 不可通过 API 修改）
+
+### REST API
+
+| Method | Path | 说明 |
+|---|---|---|
+| `POST` | `/api/login` | 登录，body: `{"username": "admin", "password": "xxx"}` |
+| `POST` | `/api/logout` | 登出，清除 session cookie |
+| `GET` | `/api/version` | 获取 Server 版本信息（公开路由） |
+| `POST` | `/api/download` | 开始下载，body: `{"tid": 123456, "authorId": 0}` |
+| `POST` | `/api/update` | 增量更新，body: `{"tid": 123456}` |
+| `GET` | `/api/tasks` | 获取运行中的任务列表 |
+| `DELETE` | `/api/tasks/{tid}` | 取消任务 |
+| `GET` | `/api/posts` | 获取已下载帖子列表 |
+| `GET` | `/api/posts/{tid}/download` | 将帖子文件夹打包为 zip 下载 |
+| `DELETE` | `/api/posts/{tid}` | 删除帖子文件夹 |
+| `GET` | `/api/schedules` | 获取定时任务列表 |
+| `POST` | `/api/schedules` | 创建定时任务 |
+| `PUT` | `/api/schedules/{id}` | 更新定时任务 |
+| `DELETE` | `/api/schedules/{id}` | 删除定时任务 |
+| `GET` | `/api/config` | 获取配置（不含 server.password） |
+| `PUT` | `/api/config` | 更新配置 |
+| `GET` | `/ws` | WebSocket 实时进度推送 |
+
+除公开路由外，所有 API 和前端均需认证（Session Cookie 或 Basic Auth）。
+
+### config.ini 新增 section
+
+```ini
+[server]
+host = 0.0.0.0
+password = your_password_here
+port = 8080
+```
+
+- `host`：绑定 IP 地址，默认 `0.0.0.0`（所有网络接口），可被 `--host` 覆盖
+- `password`：Basic Auth 密码，未设置时自动生成，不可通过 API 修改
+- `port`：默认监听端口，可被 `--port` 覆盖
+
+Server 模式与 CLI 模式共享同一 config.ini 和工作目录，互不影响。
 
 ## Special Thanks
 

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ngapost2md - 帖子列表</title>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/picocss/2.1.1/pico.min.css">
+    <style>
+        :root { --pico-container-max-width: 60rem; --pico-font-size: 100%; }
+        #posts-table th, #posts-table td { padding: 0.35rem 0.5rem; white-space: nowrap; }
+        #posts-table td:nth-child(2) { white-space: normal; max-width: 20rem; overflow: hidden; text-overflow: ellipsis; }
+        .icon-btn { display:inline-flex;align-items:center;justify-content:center;width:1.6rem;height:1.6rem;padding:0;border-radius:var(--pico-border-radius);cursor:pointer;background:transparent;border:1px solid var(--pico-muted-color);color:var(--pico-muted-color);vertical-align:middle; }
+        .icon-btn svg { width:14px; height:14px; }
+        .icon-btn:hover { background:var(--pico-muted-background);color:var(--pico-color);border-color:var(--pico-color); }
+        .icon-btn.update:hover { border-color:var(--pico-primary);color:var(--pico-primary); }
+        .icon-btn.download:hover { border-color:var(--pico-primary);color:var(--pico-primary); }
+        .icon-btn.delete:hover { border-color:#c62828;color:#c62828;background:#ffebee; }
+    </style>
+</head>
+<body>
+    <nav class="container">
+        <ul><li style="display:flex;align-items:center;gap:0.4rem"><strong>ngapost2md</strong><small id="app-version" style="color:var(--pico-muted-color);font-weight:normal"></small><a href="https://github.com/ludoux/ngapost2md" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a></li></ul>
+        <ul>
+            <li><a href="/index.html">下载帖子</a></li>
+            <li><a href="/posts.html" class="contrast">帖子列表</a></li>
+            <li><a href="/schedules.html">定时任务 <sup style="color:#e65100;font-size:0.65em;font-weight:bold">BETA</sup></a></li>
+            <li><a href="/config.html">配置</a></li>
+            <li><a href="#" onclick="logout()" style="color:var(--pico-muted-color)">登出</a></li>
+        </ul>
+    </nav>
+    <main class="container">
+        <article>
+            <header><strong>已下载帖子</strong></header>
+            <button class="secondary" onclick="loadPosts()">重载</button>
+            <table id="posts-table">
+                <thead>
+                    <tr><th>tid</th><th>标题</th><th>页数/楼层</th><th>创建/更新时间</th><th>文件夹</th><th>操作</th></tr>
+                </thead>
+                <tbody id="posts-body"></tbody>
+            </table>
+        </article>
+        <!-- 删除确认对话框 -->
+        <dialog id="delete-dialog">
+            <article>
+                <header><strong>确认删除</strong></header>
+                <p id="delete-msg">确定要删除此帖子文件夹吗？此操作不可撤销。</p>
+                <footer>
+                    <button class="secondary" onclick="document.getElementById('delete-dialog').close()">取消</button>
+                    <button id="delete-confirm-btn" class="contrast" style="background:#c62828;border-color:#c62828">确认删除</button>
+                </footer>
+            </article>
+        </dialog>
+    </main>
+    <script>
+    async function checkAuth() {
+        const res = await fetch('/api/tasks');
+        if (res.status === 401) { window.location.href = '/login.html'; return false; }
+        return true;
+    }
+
+    async function logout() {
+        await fetch('/api/logout', { method: 'POST' });
+        window.location.href = '/login.html';
+    }
+
+    function formatTime(t) {
+        if (!t) return '<span style="color:var(--pico-muted-color)">-</span>';
+        // RFC3339 -> 本地可读格式 "2024-01-15 14:30"
+        const d = new Date(t);
+        if (isNaN(d.getTime())) return t;
+        const pad = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    async function loadPosts() {
+        const res = await fetch('/api/posts');
+        const posts = await res.json();
+        const tbody = document.getElementById('posts-body');
+        tbody.innerHTML = '';
+        posts.forEach(p => {
+            tbody.innerHTML += `<tr>
+                <td>${p.tid}</td>
+                <td>${p.title}</td>
+                <td>${p.maxPage}/${p.maxFloor}</td>
+                <td>${formatTime(p.createdTime)}<br>${formatTime(p.updatedTime)}</td>
+                <td>${p.folderName}</td>
+                <td>
+                    <button class="icon-btn update" onclick="updatePost(${p.tid})" title="增量更新"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
+                    <button class="icon-btn download" onclick="downloadPost(${p.tid})" title="下载"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+                    <button class="icon-btn delete" onclick="confirmDelete(${p.tid}, '${p.folderName.replace(/'/g, "\\'")}')" title="删除"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
+                </td>
+            </tr>`;
+        });
+        if (posts.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6">暂无已下载帖子</td></tr>';
+        }
+    }
+
+    async function updatePost(tid) {
+        const res = await fetch('/api/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tid })
+        });
+        if (res.ok) {
+            alert('增量更新已加入队列，请到下载页面查看队列进度');
+            window.location.href = '/index.html';
+        } else {
+            const err = await res.json();
+            alert(err.error || '加入队列失败');
+        }
+    }
+
+    function downloadPost(tid) {
+        window.location.href = '/api/posts/' + tid + '/download';
+    }
+
+    let pendingDeleteTid = null;
+
+    function confirmDelete(tid, folderName) {
+        pendingDeleteTid = tid;
+        document.getElementById('delete-msg').textContent = '确定要删除帖子文件夹 "' + folderName + '" 吗？此操作不可撤销。';
+        document.getElementById('delete-dialog').showModal();
+    }
+
+    document.getElementById('delete-confirm-btn').addEventListener('click', async function() {
+        if (!pendingDeleteTid) return;
+        const res = await fetch('/api/posts/' + pendingDeleteTid, { method: 'DELETE' });
+        if (res.ok) {
+            document.getElementById('delete-dialog').close();
+            loadPosts();
+        } else {
+            const err = await res.json();
+            alert(err.error || '删除失败');
+        }
+    });
+
+    checkAuth().then(function(ok) { if (ok) loadPosts(); });
+    </script>
+    <script>fetch('/api/version').then(function(r){return r.json()}).then(function(d){var e=document.getElementById('app-version');if(e)e.textContent='v'+d.version}).catch(function(){})</script>
+</body>
+</html>

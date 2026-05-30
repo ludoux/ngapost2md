@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ngapost2md - 配置</title>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/picocss/2.1.1/pico.min.css">
+    <style>
+        :root { --pico-container-max-width: 60rem; --pico-font-size: 100%; }
+        .cfg-label { display: inline-flex; align-items: center; gap: 5px; }
+        .tip-icon {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 16px; height: 16px; border-radius: 50%;
+            background: var(--pico-muted-color); color: var(--pico-muted-background, #fff);
+            font-size: 10px; font-weight: bold; cursor: help; position: relative;
+            flex-shrink: 0; line-height: 1;
+        }
+        .tip-icon .tip-text {
+            display: none; position: absolute; bottom: calc(100% + 6px); left: 50%;
+            transform: translateX(-50%); background: #333; color: #fff;
+            padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: normal;
+            white-space: normal; width: max-content; max-width: 320px; z-index: 100;
+            pointer-events: none; text-align: left; line-height: 1.4;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .tip-icon:hover .tip-text { display: block; }
+    </style>
+</head>
+<body>
+    <nav class="container">
+        <ul><li style="display:flex;align-items:center;gap:0.4rem"><strong>ngapost2md</strong><small id="app-version" style="color:var(--pico-muted-color);font-weight:normal"></small><a href="https://github.com/ludoux/ngapost2md" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a></li></ul>
+        <ul>
+            <li><a href="/index.html">下载帖子</a></li>
+            <li><a href="/posts.html">帖子列表</a></li>
+            <li><a href="/schedules.html">定时任务 <sup style="color:#e65100;font-size:0.65em;font-weight:bold">BETA</sup></a></li>
+            <li><a href="/config.html" class="contrast">配置</a></li>
+            <li><a href="#" onclick="logout()" style="color:var(--pico-muted-color)">登出</a></li>
+        </ul>
+    </nav>
+    <main class="container" id="config-area">
+        <article>
+            <header><strong>配置管理</strong></header>
+            <div id="config-content"></div>
+            <button class="primary" onclick="saveConfig()">保存配置</button>
+        </article>
+    </main>
+    <script>
+    async function checkAuth() {
+        const res = await fetch('/api/tasks');
+        if (res.status === 401) { window.location.href = '/login.html'; return false; }
+        return true;
+    }
+
+    async function logout() {
+        await fetch('/api/logout', { method: 'POST' });
+        window.location.href = '/login.html';
+    }
+
+    let currentConfig = {};
+
+    async function loadConfig() {
+        const res = await fetch('/api/config');
+        currentConfig = await res.json();
+        renderConfig();
+    }
+
+    function renderConfig() {
+        const div = document.getElementById('config-content');
+        div.innerHTML = '';
+
+        const comments = currentConfig._comments || {};
+        const sections = Object.keys(currentConfig).filter(function(s) { return s !== '_comments'; });
+
+        sections.forEach(sec => {
+            div.innerHTML += '<h5>' + sec + '</h5>';
+            const keys = Object.keys(currentConfig[sec]);
+            keys.forEach(key => {
+                const value = currentConfig[sec][key];
+                const isBool = value === 'True' || value === 'False';
+                const isNum = !isNaN(value) && value.trim() !== '' && !isBool;
+
+                const comment = (comments[sec] && comments[sec][key]) || '';
+                const isReadonly = sec === 'config' && key === 'version';
+                const disabledAttr = isReadonly ? ' disabled' : '';
+                const labelHtml = '<span class="cfg-label">' + key +
+                    (comment ? '<span class="tip-icon">?<span class="tip-text">' + comment + '</span></span>' : '') +
+                    '</span>';
+
+                if (isBool) {
+                    const checked = value === 'True';
+                    div.innerHTML += '<label>' +
+                        '<input type="checkbox" id="cfg-' + sec + '-' + key + '" ' + (checked ? 'checked' : '') + disabledAttr + '> ' +
+                        labelHtml +
+                        '</label>';
+                } else if (isNum) {
+                    div.innerHTML += '<label>' + labelHtml +
+                        '<input type="number" id="cfg-' + sec + '-' + key + '" value="' + value + '"' + disabledAttr + '>' +
+                        '</label>';
+                } else {
+                    div.innerHTML += '<label>' + labelHtml +
+                        '<input type="text" id="cfg-' + sec + '-' + key + '" value="' + value + '"' + disabledAttr + '>' +
+                        '</label>';
+                }
+            });
+        });
+    }
+
+    async function saveConfig() {
+        const updates = {};
+        const sections = Object.keys(currentConfig).filter(function(s) { return s !== '_comments'; });
+
+        sections.forEach(sec => {
+            const keys = Object.keys(currentConfig[sec]);
+            keys.forEach(key => {
+                const el = document.getElementById(`cfg-${sec}-${key}`);
+                if (!el) return;
+
+                let newValue;
+                if (el.type === 'checkbox') {
+                    newValue = el.checked ? 'True' : 'False';
+                } else {
+                    newValue = el.value;
+                }
+
+                if (newValue !== currentConfig[sec][key]) {
+                    if (!updates[sec]) updates[sec] = {};
+                    updates[sec][key] = newValue;
+                }
+            });
+        });
+
+        if (Object.keys(updates).length === 0) {
+            alert('配置未变更');
+            return;
+        }
+
+        const res = await fetch('/api/config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates)
+        });
+
+        if (res.ok) {
+            alert('配置已保存并生效');
+            loadConfig();
+        } else {
+            const err = await res.json();
+            alert(err.error || '保存失败');
+        }
+    }
+
+    checkAuth().then(function(ok) { if (ok) loadConfig(); });
+    </script>
+    <script>fetch('/api/version').then(function(r){return r.json()}).then(function(d){var e=document.getElementById('app-version');if(e)e.textContent='v'+d.version}).catch(function(){})</script>
+</body>
+</html>

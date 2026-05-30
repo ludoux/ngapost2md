@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ngapost2md - 登录</title>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/picocss/2.1.1/pico.min.css">
+    <style>
+        :root { --pico-container-max-width: 60rem; --pico-font-size: 100%; }
+        .login-container { max-width: 400px; margin: 10vh auto; }
+    </style>
+</head>
+<body>
+    <main class="container login-container">
+        <article>
+            <header><strong>ngapost2md WebUI 登录</strong></header>
+            <form id="login-form">
+                <label>用户名
+                    <input type="text" id="username" value="admin" required>
+                </label>
+                <label>密码
+                    <input type="password" id="password" required autofocus>
+                </label>
+                <div id="error-msg" style="color:var(--pico-form-element-invalid-border-color);margin-bottom:1rem;display:none"></div>
+                <button type="submit">登录</button>
+            </form>
+        </article>
+    </main>
+    <script>
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        try {
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (res.ok) {
+                window.location.href = '/';
+            } else {
+                const err = await res.json();
+                const msg = document.getElementById('error-msg');
+                msg.textContent = err.error || '登录失败';
+                msg.style.display = 'block';
+            }
+        } catch (err) {
+            const msg = document.getElementById('error-msg');
+            msg.textContent = '网络错误，请重试';
+            msg.style.display = 'block';
+        }
+    });
+    </script>
+</body>
+</html>
