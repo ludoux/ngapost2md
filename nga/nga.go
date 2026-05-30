@@ -34,6 +34,7 @@ var (
 	CFGFILE_USE_NETWORK_MEDIA_URL     = false       // 媒体文件只引用在线链接 #109
 	CFGFILE_ASSETS_PATH               = "./assets/" // 帖子资源路径 #124
 	CFGFILE_SPLIT_MD_FILE             = -1          // 是否切分生成的md文件，以及单文件的页数 #105
+	CFGFILE_OUTPUT_PATH               = "./"        // 帖子输出目录
 )
 
 // 这里传参可以改
@@ -41,7 +42,7 @@ var (
 
 // 这里配置文件和传参都没法改
 var (
-	VERSION  = "1.10.3"     //需要手动改
+	VERSION  = "2.0.0"      //需要手动改
 	BUILD_TS = "1691664141" //无需，GitHub actions会自动填写
 	GIT_REF  = ""           //无需，GitHub actions会自动填写
 	GIT_HASH = ""           //无需，GitHub actions会自动填写
@@ -87,6 +88,26 @@ var (
 	reReplyPidWithUid = regexp.MustCompile(`(?s)<b>Reply to \[pid=(\d+?),.+? Post by \[uid.*?\](.+)\[\/uid\].+?\((.+?)\)</b>((?:\n){0,2})`)
 	reReplyPidNoUid   = regexp.MustCompile(`(?s)<b>Reply to \[pid=(\d+?),.+? Post by (.+)<span .+?\((.+?)\)</b>((?:\n){0,2})`)
 )
+
+// 进度回调类型，Server 模式使用
+type ProgressCallback func(stage string, currentPage, totalPage, currentFloor, totalFloor int)
+
+// ApplyConfig 从配置文件应用所有 CFGFILE_* 设置
+func ApplyConfig(cfg *ini.File) {
+	CFGFILE_THREAD_COUNT = cfg.Section("network").Key("thread").InInt(2, []int{1, 2, 3})
+	CFGFILE_PAGE_DOWNLOAD_LIMIT = cfg.Section("network").Key("page_download_limit").RangeInt(100, -1, 100)
+	CFGFILE_GET_IP_LOCATION = cfg.Section("post").Key("get_ip_location").MustBool()
+	CFGFILE_ENHANCE_ORI_REPLY = cfg.Section("post").Key("enhance_ori_reply").MustBool()
+	CFGFILE_ENHANCE_ORI_REPLY_ONLINE = cfg.Section("post").Key("enhance_ori_reply_online").MustBool()
+	CFGFILE_USE_LOCAL_SMILE_PIC = cfg.Section("post").Key("use_local_smile_pic").MustBool()
+	CFGFILE_LOCAL_SMILE_PIC_PATH = cfg.Section("post").Key("local_smile_pic_path").String()
+	CFGFILE_USE_TITLE_AS_FOLDER_NAME = cfg.Section("post").Key("use_title_as_folder_name").MustBool()
+	CFGFILE_USE_TITLE_AS_MD_FILE_NAME = cfg.Section("post").Key("use_title_as_md_file_name").MustBool()
+	CFGFILE_USE_NETWORK_MEDIA_URL = cfg.Section("post").Key("use_network_media_url").MustBool()
+	CFGFILE_ASSETS_PATH = cfg.Section("post").Key("assets_path").String()
+	CFGFILE_SPLIT_MD_FILE = cfg.Section("post").Key("split_md_file").RangeInt(-1, -1, 200)
+	CFGFILE_OUTPUT_PATH = cfg.Section("post").Key("output_path").String()
+}
 
 // 通用媒体文件处理函数
 func processMedia(content string, contentRe *regexp.Regexp, srcRe *regexp.Regexp, mediaType string, assets *map[string]string, floor *Floor, tiezi *Tiezi, isImage bool) string {
@@ -144,7 +165,7 @@ func processMedia(content string, contentRe *regexp.Regexp, srcRe *regexp.Regexp
 				time.Sleep(time.Millisecond * time.Duration(DELAY_MS))
 				log.Printf("下载%s: %s\n", mediaType, fileName)
 				// 确保目录存在
-				assetDir := filepath.Join(".", tiezi.GetNeededFolderName(), CFGFILE_ASSETS_PATH)
+				assetDir := filepath.Join(CFGFILE_OUTPUT_PATH, tiezi.GetNeededFolderName(), CFGFILE_ASSETS_PATH)
 				os.MkdirAll(assetDir, os.ModePerm)
 				downloadAssets(url, filepath.Join(assetDir, fileName))
 				//log.Println("下载",mediaType,"成功:", fileName)
@@ -180,22 +201,25 @@ type Floor struct {
 }
 type Floors []Floor
 type Tiezi struct {
-	Tid             int
-	AuthorId        int // 这个是用户传入的希望仅下载某用户id的发言贴参数
-	Title           string
-	TitleFolderSafe string
-	Catelogy        string
-	Username        string
-	UserId          int
-	WebMaxPage      int
-	LocalMaxPage    int
-	LocalMaxFloor   int
-	FloorCount      int    // 包含主楼
-	Floors          Floors // 主楼为[0]
-	HotPosts        Floors
-	Timestamp       int64  // page() fixFloorContent()  中会更新
-	Version         string // 这个是软件的version
-	Assets          map[string]string
+	Tid              int
+	AuthorId         int // 这个是用户传入的希望仅下载某用户id的发言贴参数
+	Title            string
+	TitleFolderSafe  string
+	Catelogy         string
+	Username         string
+	UserId           int
+	WebMaxPage       int
+	LocalMaxPage     int
+	LocalMaxFloor    int
+	FloorCount       int    // 包含主楼
+	Floors           Floors // 主楼为[0]
+	HotPosts         Floors
+	Timestamp        int64  // page() fixFloorContent()  中会更新
+	Version          string // 这个是软件的version
+	Assets           map[string]string
+	CreatedTime      string           // 本任务首次创建时间 (RFC3339)
+	UpdatedTime      string           // 最近一次更新时间 (RFC3339)
+	ProgressCallback ProgressCallback // CLI 模式下为 nil，Server 模式下用于实时进度回调
 }
 
 var responseChannel = make(chan string, 15)
@@ -218,7 +242,7 @@ func (it *Floors) analyze(resp []byte, isComments bool) {
 		}
 		// 根据楼数补充Floors
 		for len(*it) < lou+1 {
-			(*it) = append((*it), Floor{Lou: -1})
+			(*it) = append(*it, Floor{Lou: -1})
 		}
 
 		curFloor := &(*it)[lou]
@@ -226,7 +250,7 @@ func (it *Floors) analyze(resp []byte, isComments bool) {
 		// 楼层
 		curFloor.Lou = lou
 
-		// PID
+		// 帖子 PID
 		value_int, _ = jsonparser.GetInt(value, "pid")
 		curFloor.Pid = cast.ToInt(value_int)
 
@@ -264,7 +288,7 @@ func (it *Floors) analyze(resp []byte, isComments bool) {
  * @param {int} page 指定的页数
  * @return {*}
  */
-func (tiezi *Tiezi) page(page int) {
+func (tiezi *Tiezi) page(page int) error {
 	var resp *req.Response
 	var err error
 	if tiezi.AuthorId > 0 {
@@ -280,12 +304,12 @@ func (tiezi *Tiezi) page(page int) {
 		}).Post("app_api.php?__lib=post&__act=list")
 	}
 	if err != nil {
-		log.Fatalln(err.Error())
+		return fmt.Errorf("请求 NGA 页面 %d 失败: %v", page, err)
 	}
 	code, _ := jsonparser.GetInt(resp.Bytes(), "code")
 	if code != 0 {
 		msg, _ := jsonparser.GetString(resp.Bytes(), "msg")
-		log.Fatalln("nga 返回代码不为0:", code, msg)
+		return fmt.Errorf("nga 返回代码不为0: %d %s", code, msg)
 	} else {
 		tiezi.Timestamp = ts()
 
@@ -332,6 +356,7 @@ func (tiezi *Tiezi) page(page int) {
 		value_byte, _, _, _ = jsonparser.Get(resp.Bytes(), "result")
 		tiezi.Floors.analyze(value_byte, false)
 	}
+	return nil
 }
 
 /**
@@ -339,14 +364,15 @@ func (tiezi *Tiezi) page(page int) {
  * @param {int} tid 帖子tid
  * @return {*}
  */
-func (tiezi *Tiezi) InitFromWeb(tid int, authorId int) {
+func (tiezi *Tiezi) InitFromWeb(tid int, authorId int) error {
 	tiezi.init(tid, authorId)
 	tiezi.Version = VERSION
 	tiezi.Assets = map[string]string{}
 	tiezi.LocalMaxPage = 1
 	tiezi.LocalMaxFloor = -1
+	tiezi.CreatedTime = time.Now().Format(time.RFC3339)
 	log.Printf("下载第 %02d 页\n", tiezi.LocalMaxPage)
-	tiezi.page(tiezi.LocalMaxPage)
+	return tiezi.page(tiezi.LocalMaxPage)
 }
 
 /**
@@ -354,36 +380,44 @@ func (tiezi *Tiezi) InitFromWeb(tid int, authorId int) {
  * @param {int} tid 帖子tid
  * @return {*}
  */
-func (tiezi *Tiezi) InitFromLocal(tid int, authorId int) {
+func (tiezi *Tiezi) InitFromLocal(tid int, authorId int) error {
 	tiezi.init(tid, authorId)
 	tiezi.Version = VERSION
 
-	checkFileExistence := func(fileName string) {
-		if _, err := os.Stat(fileName); os.IsNotExist(err) {
-			log.Fatalln(fileName, "文件丢失，软件将退出。")
-		}
+	folderName, err := FindFolderNameByTid(tid, authorId)
+	if err != nil {
+		return fmt.Errorf("查找本地文件夹失败: %v", err)
 	}
-	folderName := FindFolderNameByTid(tid, authorId)
 	if folderName == "" {
-		log.Fatalln("找不到本地 tid 文件夹，软件将退出。")
+		return fmt.Errorf("找不到本地 tid 文件夹，软件将退出。")
 	}
-	processFileName := filepath.Join(".", folderName, "process.ini")
-	checkFileExistence(processFileName)
+	processFileName := filepath.Join(CFGFILE_OUTPUT_PATH, folderName, "process.ini")
+	if _, err := os.Stat(processFileName); os.IsNotExist(err) {
+		return fmt.Errorf("%s 文件丢失", processFileName)
+	}
 
-	assetsFileName := filepath.Join(".", folderName, "assets.json")
-	checkFileExistence(assetsFileName)
+	assetsFileName := filepath.Join(CFGFILE_OUTPUT_PATH, folderName, "assets.json")
+	if _, err := os.Stat(assetsFileName); os.IsNotExist(err) {
+		return fmt.Errorf("%s 文件丢失", assetsFileName)
+	}
 
 	jsonBytes, _ := os.ReadFile(assetsFileName)
-	err := json.Unmarshal(jsonBytes, &(tiezi.Assets))
+	err = json.Unmarshal(jsonBytes, &(tiezi.Assets))
 	if err != nil {
-		log.Fatalln("解析 assets.json 失败:", err.Error())
+		return fmt.Errorf("解析 assets.json 失败: %v", err)
 	}
 	cfg, _ := ini.Load(processFileName)
 	tiezi.LocalMaxPage = cfg.Section("local").Key("max_page").MustInt(1)
 	tiezi.LocalMaxFloor = cfg.Section("local").Key("max_floor").MustInt(-1)
+	// 读取已有的创建时间和更新时间（若存在）
+	tiezi.CreatedTime = cfg.Section("info").Key("created_time").String()
+	tiezi.UpdatedTime = cfg.Section("info").Key("updated_time").String()
+	// 兼容旧版本：旧 process.ini 没有 created_time，用当前时间补填
+	if tiezi.CreatedTime == "" {
+		tiezi.CreatedTime = time.Now().Format(time.RFC3339)
+	}
 	log.Printf("下载第 %02d 页\n", tiezi.LocalMaxPage)
-	tiezi.page(tiezi.LocalMaxPage)
-
+	return tiezi.page(tiezi.LocalMaxPage)
 }
 
 /**
@@ -401,10 +435,10 @@ func (tiezi *Tiezi) init(tid int, authorId int) {
  * @param {int} pid 楼层 pid
  * @return {*}
  */
-func (tiezi *Tiezi) findFloorByPid(pid int) *Floor {
+func (tiezi *Tiezi) findFloorByPid(pid int) (*Floor, error) {
 	for i := range tiezi.Floors {
 		if tiezi.Floors[i].Pid == pid {
-			return &tiezi.Floors[i]
+			return &tiezi.Floors[i], nil
 		}
 	}
 	if CFGFILE_ENHANCE_ORI_REPLY_ONLINE {
@@ -414,28 +448,28 @@ func (tiezi *Tiezi) findFloorByPid(pid int) *Floor {
 			"pid": cast.ToString(pid),
 		}).Post("app_api.php?__lib=post&__act=list")
 		if err != nil {
-			log.Fatalln(err.Error())
+			return nil, fmt.Errorf("获取回复内容网络请求失败: %v", err)
 		}
 		code, _ := jsonparser.GetInt(resp.Bytes(), "code")
 		if code != 0 {
 			msg, _ := jsonparser.GetString(resp.Bytes(), "msg")
 			log.Println("获取回复内容失败 nga返回代码不为0:", code, msg)
-			return &Floor{Content: fmt.Sprint(pid, "获取回复内容失败 nga返回代码不为0:", code, msg)}
+			return &Floor{Content: fmt.Sprint(pid, "获取回复内容失败 nga返回代码不为0:", code, msg)}, nil
 		}
 		// 解析返回的楼层数据
 		value_byte, dataType, _, _ := jsonparser.Get(resp.Bytes(), "result")
 		if dataType == jsonparser.NotExist {
 			log.Println("获取回复内容失败，result不存在")
-			return &Floor{Content: fmt.Sprint(pid, "获取回复内容失败 result不存在")}
+			return &Floor{Content: fmt.Sprint(pid, "获取回复内容失败 result不存在")}, nil
 		}
 		content, err := jsonparser.GetString(value_byte, "[0]", "content")
 		if err != nil {
-			log.Fatalln(err.Error())
+			return nil, fmt.Errorf("获取回复内容解析失败: %v", err)
 		}
 		// 尽量修大部分文本内容
-		return &Floor{Content: fixMost(content, nil, nil)}
+		return &Floor{Content: fixMost(content, nil, nil)}, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
@@ -444,13 +478,13 @@ func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
 			`\u0026`:             "&",
 			`\u003c`:             "<",
 			`\u003e`:             ">",
-			`&amp;#160;`:         " ",
-			`<br/>`:              "\n",
-			`<br>`:               "\n",
-			`&lt;br/&gt;`:        "\n",
-			`&lt;br&gt;`:         "\n",
-			`<del class='gray'>`: `~~`,
-			`</del>`:             `~~`,
+			"&amp;#160;":         " ",
+			"<br/>":              "\n",
+			"<br>":               "\n",
+			"&lt;br/&gt;":        "\n",
+			"&lt;br&gt;":         "\n",
+			"<del class='gray'>": `~~`,
+			"</del>":             `~~`,
 		}
 		for old, new := range replacements {
 			cont = strings.ReplaceAll(cont, old, new)
@@ -470,7 +504,7 @@ func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
 		return cont
 	}
 	fixDice := func(cont string) string {
-		// ROLL DICE
+		// 骰子投掷
 		// <div class='dice'><b>ROLL : 1d100</b>=d100(32)=<b>32</b></div>
 		for _, it := range reDice.FindAllStringSubmatch(cont, -1) {
 			rollSrc := it[1]
@@ -649,8 +683,11 @@ func fixMost(cont string, tiezi *Tiezi, floor *Floor) string {
 			replyedText := ":"
 			if tiezi != nil && CFGFILE_ENHANCE_ORI_REPLY {
 				// 正常的从fixContent来调用
-				replyedFloor := tiezi.findFloorByPid(cast.ToInt(quotePid))
-				if replyedFloor != nil {
+				replyedFloor, findErr := tiezi.findFloorByPid(cast.ToInt(quotePid))
+				if findErr != nil {
+					log.Println("查找回复楼层失败:", findErr.Error())
+					replyedText = "说:(查找回复失败)"
+				} else if replyedFloor != nil {
 					replyedText = "说:\n>" + strings.ReplaceAll(replyedFloor.Content, "\n", "\n>")
 				}
 			} else if tiezi == nil {
@@ -686,7 +723,7 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
 	 *2. 删除线有变
 	 *3. quote reply等，[b]变化；假如是匿名用户，就不会有 uid框框
 	 */
-	// tid int, assets *(map[string]string)
+	// tid 为帖子 ID，assets 为资源 map 指针
 	assets := &tiezi.Assets
 	oriFloor := &tiezi.Floors[floor_i]
 	floor := &tiezi.Floors[floor_i]
@@ -739,15 +776,20 @@ func (tiezi *Tiezi) fixContent(floor_i int) {
  * @param {int} startFloor_i 从哪一下标开始修。主要是针对追加楼层更新时
  * @return {*}
  */
-func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
+func (tiezi *Tiezi) fixFloorContent(startFloor_i int) error {
 
 	var wg sync.WaitGroup
+	errCh := make(chan error, len(tiezi.Floors)-startFloor_i)
 	p, _ := ants.NewPoolWithFunc(CFGFILE_THREAD_COUNT, func(floor_i interface{}) {
-		if tiezi.Floors[cast.ToInt(floor_i)].Lou != -1 {
-			responseChannel <- fmt.Sprintf("开始修正第 %02d 楼层", cast.ToInt(floor_i))
-			tiezi.fixContent(cast.ToInt(floor_i))
+		defer wg.Done()
+		idx := cast.ToInt(floor_i)
+		if tiezi.Floors[idx].Lou != -1 {
+			responseChannel <- fmt.Sprintf("开始修正第 %02d 楼层", idx)
+			tiezi.fixContent(idx)
+			if tiezi.ProgressCallback != nil {
+				tiezi.ProgressCallback("processing_content", 0, 0, idx, len(tiezi.Floors))
+			}
 		}
-		wg.Done()
 	})
 	defer p.Release()
 
@@ -759,12 +801,13 @@ func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
 	}
 	wg.Wait()
 	log.Println("修正楼层总耗时:", time.Since(startTime).Truncate(time.Second).String())
-	// 如果为了调试取消并行的话，上述代码均注释，换成下面的
-	// for i := startFloor_i; i < len(tiezi.Floors); i++ {
-	// 	log.Printf("开始修正第 %02d 楼层", i)
-	// 	tiezi.fixContent(cast.ToInt(i))
-	// }
 
+	select {
+	case err := <-errCh:
+		return err
+	default:
+	}
+	return nil
 }
 
 /**
@@ -772,8 +815,8 @@ func (tiezi *Tiezi) fixFloorContent(startFloor_i int) {
  * @param {int} localMaxFloor 本地已有的楼
  * @return {*}
  */
-func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
-	folder := filepath.Join(".", tiezi.GetNeededFolderName())
+func (tiezi *Tiezi) genMarkdown(localMaxFloor int) error {
+	folder := filepath.Join(CFGFILE_OUTPUT_PATH, tiezi.GetNeededFolderName())
 	os.MkdirAll(folder, os.ModePerm)
 
 	splitInfoPath := filepath.Join(folder, "splitinfo.ini")
@@ -792,7 +835,7 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 		// 文件存在，需要切分
 		cfg, err := ini.Load(splitInfoPath)
 		if err != nil {
-			log.Fatalln("无法加载 splitinfo.ini:", err)
+			return fmt.Errorf("无法加载 splitinfo.ini: %v", err)
 		}
 
 		// 检查配置是否发生了变化，如果变动了则提示，然后使用新的参数
@@ -852,13 +895,13 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 	}
 	if _, err := os.Stat(mdFilePath); os.IsNotExist(err) {
 		if _, err := os.Create(mdFilePath); err != nil {
-			log.Fatalf("创建 .md 文件失败：%v", err)
+			return fmt.Errorf("创建 .md 文件失败：%v", err)
 		}
 	}
 
 	f, err := os.OpenFile(mdFilePath, os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
-		log.Fatalf("打开 .md 文件失败：%v", err)
+		return fmt.Errorf("打开 .md 文件失败：%v", err)
 	}
 	defer f.Close()
 	for i := localMaxFloor; i < len(tiezi.Floors); i++ {
@@ -877,7 +920,7 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 			mdFilePath = filepath.Join(folder, mdName)
 			f, err = os.OpenFile(mdFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 			if err != nil {
-				log.Fatalf("创建或打开 .md 文件失败：%v", err)
+				return fmt.Errorf("创建或打开 .md 文件失败：%v", err)
 			}
 			// 补一个这个，防止把顶的`----`识别成注释，导致无法渲染第一个楼层
 			f.WriteString(" ")
@@ -940,6 +983,7 @@ func (tiezi *Tiezi) genMarkdown(localMaxFloor int) {
 		cfg.Section("split").NewKey("setting_value", cast.ToString(localCFGFILE_SPLIT_MD_FILE)) // 记录当前配置值
 		cfg.SaveTo(fileName)
 	}
+	return nil
 }
 
 func responseController() {
@@ -950,7 +994,7 @@ func responseController() {
 
 // 会首先调用FindFolderNameByTid，确定本地没有相关文件夹再返回指定格式文件名。否则返回本地已有文件名
 func (tiezi *Tiezi) GetNeededFolderName() string {
-	already := FindFolderNameByTid(tiezi.Tid, tiezi.AuthorId)
+	already, _ := FindFolderNameByTid(tiezi.Tid, tiezi.AuthorId)
 	if already != "" {
 		return already
 	}
@@ -969,84 +1013,133 @@ func (tiezi *Tiezi) GetNeededFolderName() string {
 	}
 }
 
-func (tiezi *Tiezi) SaveProcessInfo() {
-	folder := filepath.Join(".", tiezi.GetNeededFolderName())
+func (tiezi *Tiezi) SaveProcessInfo() error {
+	folder := filepath.Join(CFGFILE_OUTPUT_PATH, tiezi.GetNeededFolderName())
 
 	fileName := filepath.Join(folder, "process.ini")
 	cfg := ini.Empty()
 	cfg.NewSection("local")
 	cfg.Section("local").NewKey("max_floor", cast.ToString(tiezi.LocalMaxFloor))
 	cfg.Section("local").NewKey("max_page", cast.ToString(tiezi.LocalMaxPage))
-	cfg.SaveTo(fileName)
+	cfg.NewSection("info")
+	cfg.Section("info").NewKey("created_time", tiezi.CreatedTime)
+	cfg.Section("info").NewKey("updated_time", tiezi.UpdatedTime)
+	return cfg.SaveTo(fileName)
 }
 
-func (tiezi *Tiezi) SaveAssetsMap() {
-	folder := filepath.Join(".", tiezi.GetNeededFolderName())
+func (tiezi *Tiezi) SaveAssetsMap() error {
+	folder := filepath.Join(CFGFILE_OUTPUT_PATH, tiezi.GetNeededFolderName())
 
 	fileName := filepath.Join(folder, "assets.json")
 	result, err := json.Marshal(tiezi.Assets)
 	if err != nil {
-		log.Fatalln("将附件转化为 Json 格式失败:", err.Error())
+		return fmt.Errorf("将附件转化为 Json 格式失败: %v", err)
 	}
 	err = os.WriteFile(fileName, result, 0666)
 	if err != nil {
-		log.Fatalln("保存 assets.json 文件失败:", err.Error())
+		return fmt.Errorf("保存 assets.json 文件失败: %v", err)
 	}
+	return nil
 }
 
-func (tiezi *Tiezi) Download() {
-	if tiezi.Tid != 0 {
-		var wg sync.WaitGroup
-		p, _ := ants.NewPoolWithFunc(CFGFILE_THREAD_COUNT, func(page interface{}) {
-			time.Sleep(time.Millisecond * time.Duration(DELAY_MS))
-			responseChannel <- fmt.Sprintf("下载第 %02d 页", page)
-			// 1. 并行下载page
-			tiezi.page(cast.ToInt(page))
-			wg.Done()
-		})
-		defer p.Release()
-		go responseController()
-
-		startTime := time.Now()
-		// 因为 it.LocalMaxPage 在InitFromxxx的时候已经page过了
-		for page := tiezi.LocalMaxPage + 1; page <= tiezi.WebMaxPage; page++ {
-			wg.Add(1)
-			_ = p.Invoke(page)
-		}
-		wg.Wait()
-
-		log.Println("下载所有页面总耗时:", time.Since(startTime).Truncate(time.Second).String())
-		if page_download_limit_triggered {
-			log.Println("单次下载 Page 数已达上限！本次导出完毕后需要多次重新运行才可全部导出此帖内容。")
-		}
-
-		// 2. 格式化content
-		tiezi.fixFloorContent(tiezi.LocalMaxFloor + 1)
-
-		// 3. 制作文件
-		tiezi.genMarkdown(tiezi.LocalMaxFloor + 1)
-
-		tiezi.LocalMaxPage = tiezi.WebMaxPage
-
-		// 因为NGA会抽楼，floorcount不准，只能这样子
-		for i := len(tiezi.Floors) - 1; ; i-- {
-			floor := &tiezi.Floors[i]
-			if floor.Lou > -1 {
-				tiezi.LocalMaxFloor = floor.Lou
-				break
-			}
-		}
-		// 存储tiezi---暂时注释掉，还是使用存储localmaxpage和maxfloor(SaveProcessInfo)的方法。
-		// tiezi.SaveAsFile()
-
-		// 存储localmaxpage和maxfloor
-		tiezi.SaveProcessInfo()
-
-		// 存储assets map
-		tiezi.SaveAssetsMap()
-		if page_download_limit_triggered {
-			log.Println("单次下载 Page 数已达上限！本次导出完毕后需要多次重新运行才可全部导出此帖内容。")
-		}
-		log.Println("本次任务结束。")
+func (tiezi *Tiezi) Download() error {
+	if tiezi.Tid == 0 {
+		return nil
 	}
+
+	var wg sync.WaitGroup
+	errCh := make(chan error, tiezi.WebMaxPage-tiezi.LocalMaxPage+1)
+
+	// 进度回调：开始下载阶段
+	if tiezi.ProgressCallback != nil {
+		tiezi.ProgressCallback("downloading", tiezi.LocalMaxPage, tiezi.WebMaxPage, tiezi.LocalMaxFloor, tiezi.FloorCount)
+	}
+
+	p, _ := ants.NewPoolWithFunc(CFGFILE_THREAD_COUNT, func(page interface{}) {
+		defer wg.Done()
+		time.Sleep(time.Millisecond * time.Duration(DELAY_MS))
+		responseChannel <- fmt.Sprintf("下载第 %02d 页", page)
+		if err := tiezi.page(cast.ToInt(page)); err != nil {
+			errCh <- err
+			return
+		}
+		if tiezi.ProgressCallback != nil {
+			tiezi.ProgressCallback("downloading", cast.ToInt(page), tiezi.WebMaxPage, tiezi.LocalMaxFloor, tiezi.FloorCount)
+		}
+	})
+	defer p.Release()
+	go responseController()
+
+	startTime := time.Now()
+	// 因为 it.LocalMaxPage 在InitFromxxx的时候已经page过了
+	for page := tiezi.LocalMaxPage + 1; page <= tiezi.WebMaxPage; page++ {
+		wg.Add(1)
+		_ = p.Invoke(page)
+	}
+	wg.Wait()
+
+	// 检查页面下载阶段的错误
+	select {
+	case err := <-errCh:
+		return fmt.Errorf("下载页面失败: %v", err)
+	default:
+	}
+
+	log.Println("下载所有页面总耗时:", time.Since(startTime).Truncate(time.Second).String())
+	if page_download_limit_triggered {
+		log.Println("单次下载 Page 数已达上限！本次导出完毕后需要多次重新运行才可全部导出此帖内容。")
+	}
+
+	// 进度回调：开始内容处理阶段
+	if tiezi.ProgressCallback != nil {
+		tiezi.ProgressCallback("processing_content", 0, 0, tiezi.LocalMaxFloor, len(tiezi.Floors))
+	}
+
+	// 2. 格式化content
+	if err := tiezi.fixFloorContent(tiezi.LocalMaxFloor + 1); err != nil {
+		return fmt.Errorf("格式化内容失败: %v", err)
+	}
+
+	// 进度回调：开始生成 Markdown 阶段
+	if tiezi.ProgressCallback != nil {
+		tiezi.ProgressCallback("generating_markdown", tiezi.WebMaxPage, tiezi.WebMaxPage, tiezi.LocalMaxFloor, len(tiezi.Floors))
+	}
+
+	// 3. 制作文件
+	if err := tiezi.genMarkdown(tiezi.LocalMaxFloor + 1); err != nil {
+		return fmt.Errorf("生成 Markdown 失败: %v", err)
+	}
+
+	tiezi.LocalMaxPage = tiezi.WebMaxPage
+
+	// 因为NGA会抽楼，floorcount不准，只能这样子
+	for i := len(tiezi.Floors) - 1; ; i-- {
+		floor := &tiezi.Floors[i]
+		if floor.Lou > -1 {
+			tiezi.LocalMaxFloor = floor.Lou
+			break
+		}
+	}
+
+	// 存储localmaxpage和maxfloor
+	tiezi.UpdatedTime = time.Now().Format(time.RFC3339)
+	if err := tiezi.SaveProcessInfo(); err != nil {
+		return fmt.Errorf("保存 process.ini 失败: %v", err)
+	}
+
+	// 存储assets map
+	if err := tiezi.SaveAssetsMap(); err != nil {
+		return fmt.Errorf("保存 assets.json 失败: %v", err)
+	}
+
+	// 进度回调：完成
+	if tiezi.ProgressCallback != nil {
+		tiezi.ProgressCallback("completed", tiezi.WebMaxPage, tiezi.WebMaxPage, tiezi.LocalMaxFloor, tiezi.FloorCount)
+	}
+
+	if page_download_limit_triggered {
+		log.Println("单次下载 Page 数已达上限！本次导出完毕后需要多次重新运行才可全部导出此帖内容。")
+	}
+	log.Println("本次任务结束。")
+	return nil
 }

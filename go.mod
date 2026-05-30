@@ -6,9 +6,11 @@ toolchain go1.25.5
 
 require (
 	github.com/buger/jsonparser v1.2.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/imroc/req/v3 v3.57.0
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/panjf2000/ants/v2 v2.12.0
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/cast v1.10.0
 	gopkg.in/ini.v1 v1.67.2
 )

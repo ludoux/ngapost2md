@@ -13,6 +13,7 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/ludoux/ngapost2md/config"
 	"github.com/ludoux/ngapost2md/nga"
+	"github.com/ludoux/ngapost2md/server"
 	"github.com/spf13/cast"
 )
 
@@ -80,7 +81,49 @@ func extractTidAndAuthorIdFromUrl(url string) (int, int) {
 	return tid, authorId
 }
 
+// 解析 serve 子命令的参数
+func parseServeArgs(args []string) server.ServeOpts {
+	opts := server.ServeOpts{Host: "", Port: 0, Password: "", NoUI: false}
+	for i := 0; i < len(args); i++ {
+		switch {
+		case args[i] == "--host":
+			if i+1 < len(args) {
+				opts.Host = args[i+1]
+				i++
+			}
+		case strings.HasPrefix(args[i], "--host="):
+			opts.Host = strings.SplitN(args[i], "=", 2)[1]
+		case args[i] == "--port" || args[i] == "-p":
+			if i+1 < len(args) {
+				opts.Port = cast.ToInt(args[i+1])
+				i++
+			}
+		case strings.HasPrefix(args[i], "--port="):
+			opts.Port = cast.ToInt(strings.SplitN(args[i], "=", 2)[1])
+		case args[i] == "--password":
+			if i+1 < len(args) {
+				opts.Password = args[i+1]
+				i++
+			}
+		case strings.HasPrefix(args[i], "--password="):
+			opts.Password = strings.SplitN(args[i], "=", 2)[1]
+		case args[i] == "--no-ui":
+			opts.NoUI = true
+		}
+	}
+	return opts
+}
+
 func main() {
+	// 检查 serve 子命令（在 go-flags 解析之前）
+	if len(os.Args) > 1 && os.Args[1] == "serve" {
+		opts := parseServeArgs(os.Args[2:])
+		if err := server.Start(opts); err != nil {
+			log.Fatalln("Server 启动失败:", err.Error())
+		}
+		return
+	}
+
 	var opts Option
 	parser := flags.NewParser(&opts, flags.Default & ^flags.HelpFlag)
 	//args为剩余未解析的（比如tid）
@@ -107,6 +150,7 @@ func main() {
 		fmt.Println("ngapost2md github.com/ludoux/ngapost2md")
 		fmt.Println("使用: ngapost2md tid [--authorid aid]")
 		fmt.Println("或:  ngapost2md url [--authorid aid]")
+		fmt.Println("或:  ngapost2md serve [--host ip] [--port port] [--password pwd] [--no-ui]")
 		fmt.Println("选项与参数说明: ")
 		fmt.Println("tid: 待下载的帖子 tid 号")
 		fmt.Println("url: NGA帖子的链接，例如: https://nga.178.com/read.php?tid=123&authorid=456")
@@ -148,7 +192,7 @@ func main() {
 		}
 	}
 
-	//args check all passed
+	// 参数检查全部通过
 
 	fmt.Printf("ngapost2md (c) ludoux [ GitHub: https://github.com/ludoux/ngapost2md/tree/neo ]\nVersion: %s     %s\n", nga.VERSION, time.Unix(cast.ToInt64(nga.BUILD_TS), 0).Local().Format("2006-01-02T15:04:05Z07:00"))
 	if nga.DEBUG_MODE == "1" {
@@ -164,11 +208,14 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 
-	// Cookie
+	// Cookie 配置
 	var ngaPassportUid = cfg.Section("network").Key("ngaPassportUid").String()
 	var ngaPassportCid = cfg.Section("network").Key("ngaPassportCid").String()
 	var cookie strings.Builder
-	cookie.WriteString("ngaPassportUid=" + ngaPassportUid + ";" + "ngaPassportCid=" + ngaPassportCid)
+	cookie.WriteString("ngaPassportUid=")
+	cookie.WriteString(ngaPassportUid)
+	cookie.WriteString(";ngaPassportCid=")
+	cookie.WriteString(ngaPassportCid)
 	nga.COOKIE = cookie.String()
 
 	nga.BASE_URL = cfg.Section("network").Key("base_url").String()
@@ -186,18 +233,7 @@ func main() {
 	}
 
 	// 默认线程数为2,仅支持1~3
-	nga.CFGFILE_THREAD_COUNT = cfg.Section("network").Key("thread").InInt(2, []int{1, 2, 3})
-	nga.CFGFILE_PAGE_DOWNLOAD_LIMIT = cfg.Section("network").Key("page_download_limit").RangeInt(100, -1, 100)
-	nga.CFGFILE_GET_IP_LOCATION = cfg.Section("post").Key("get_ip_location").MustBool()
-	nga.CFGFILE_ENHANCE_ORI_REPLY = cfg.Section("post").Key("enhance_ori_reply").MustBool()
-	nga.CFGFILE_ENHANCE_ORI_REPLY_ONLINE = cfg.Section("post").Key("enhance_ori_reply_online").MustBool()
-	nga.CFGFILE_USE_LOCAL_SMILE_PIC = cfg.Section("post").Key("use_local_smile_pic").MustBool()
-	nga.CFGFILE_LOCAL_SMILE_PIC_PATH = cfg.Section("post").Key("local_smile_pic_path").String()
-	nga.CFGFILE_USE_TITLE_AS_FOLDER_NAME = cfg.Section("post").Key("use_title_as_folder_name").MustBool()
-	nga.CFGFILE_USE_TITLE_AS_MD_FILE_NAME = cfg.Section("post").Key("use_title_as_md_file_name").MustBool()
-	nga.CFGFILE_USE_NETWORK_MEDIA_URL = cfg.Section("post").Key("use_network_media_url").MustBool()
-	nga.CFGFILE_ASSETS_PATH = cfg.Section("post").Key("assets_path").String()
-	nga.CFGFILE_SPLIT_MD_FILE = cfg.Section("post").Key("split_md_file").RangeInt(-1, -1, 200)
+	nga.ApplyConfig(cfg)
 
 	// 检查一些互斥项
 	if nga.CFGFILE_ENHANCE_ORI_REPLY && nga.CFGFILE_THREAD_COUNT > 1 {
@@ -211,14 +247,23 @@ func main() {
 
 	tie := nga.Tiezi{}
 
-	path := nga.FindFolderNameByTid(tid, opts.AuthorId)
+	path, err := nga.FindFolderNameByTid(tid, opts.AuthorId)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
 	if path != "" {
 		log.Printf("本地存在此 tid (%s) 文件夹，追加最新更改。", path)
-		tie.InitFromLocal(tid, opts.AuthorId)
+		if err := tie.InitFromLocal(tid, opts.AuthorId); err != nil {
+			log.Fatalln(err.Error())
+		}
 
 	} else {
-		tie.InitFromWeb(tid, opts.AuthorId)
+		if err := tie.InitFromWeb(tid, opts.AuthorId); err != nil {
+			log.Fatalln(err.Error())
+		}
 	}
 
-	tie.Download()
+	if err := tie.Download(); err != nil {
+		log.Fatalln(err.Error())
+	}
 }

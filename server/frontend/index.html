@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ngapost2md - 下载帖子</title>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/picocss/2.1.1/pico.min.css">
+    <style>
+        :root { --pico-container-max-width: 60rem; --pico-font-size: 100%; }
+        .progress-bar { height: 20px; background: var(--pico-primary-background); border-radius: var(--pico-border-radius); overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: var(--pico-primary); transition: width 0.3s; }
+        .stage-indicator { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        .stage { padding: 0.3rem 0.8rem; border-radius: var(--pico-border-radius); background: var(--pico-muted-background); color: var(--pico-muted-color); font-size: 0.85rem; }
+        .stage.active { background: var(--pico-primary); color: var(--pico-primary-inverse); }
+        .stage.done { background: var(--pico-secondary); color: var(--pico-secondary-inverse); }
+    </style>
+</head>
+<body>
+    <nav class="container">
+        <ul><li style="display:flex;align-items:center;gap:0.4rem"><strong>ngapost2md</strong><small id="app-version" style="color:var(--pico-muted-color);font-weight:normal"></small><a href="https://github.com/ludoux/ngapost2md" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a></li></ul>
+        <ul>
+            <li><a href="/index.html" class="contrast">下载帖子</a></li>
+            <li><a href="/posts.html">帖子列表</a></li>
+            <li><a href="/schedules.html">定时任务 <sup style="color:#e65100;font-size:0.65em;font-weight:bold">BETA</sup></a></li>
+            <li><a href="/config.html">配置</a></li>
+            <li><a href="#" onclick="logout()" style="color:var(--pico-muted-color)">登出</a></li>
+        </ul>
+    </nav>
+    <main class="container">
+        <article>
+            <header><strong>下载新帖子</strong></header>
+            <form id="download-form">
+                <label>帖子 tid 或 NGA URL
+                    <input type="text" id="tid-input" placeholder="例: 123456 或 https://bbs.nga.cn/read.php?tid=123456" required>
+                </label>
+                <label>authorId（可选，只看某用户发言）
+                    <input type="number" id="authorid-input" placeholder="0" value="0">
+                </label>
+                <button type="submit" id="download-btn">加入队列</button>
+            </form>
+        </article>
+        <article id="progress-area" style="display:none">
+            <header><strong id="progress-title">当前任务进度</strong></header>
+            <div class="stage-indicator" id="stage-indicator">
+                <span class="stage" id="stage-download">下载</span>
+                <span class="stage" id="stage-process">内容处理</span>
+                <span class="stage" id="stage-markdown">生成 Markdown</span>
+            </div>
+            <label>页码进度: <span id="page-progress">0/0</span>
+                <div class="progress-bar"><div class="progress-bar-fill" id="page-bar" style="width:0%"></div></div>
+            </label>
+            <label>楼层进度: <span id="floor-progress">0/0</span>
+                <div class="progress-bar"><div class="progress-bar-fill" id="floor-bar" style="width:0%"></div></div>
+            </label>
+            <small id="status-text">等待中...</small>
+        </article>
+        <article>
+            <header><strong>任务队列</strong> <button class="secondary outline" onclick="loadQueue()" style="float:right">重载</button></header>
+            <table id="queue-table">
+                <thead>
+                    <tr><th>tid</th><th>类型</th><th>状态</th><th>入队时间</th><th>操作</th></tr>
+                </thead>
+                <tbody id="queue-body"></tbody>
+            </table>
+        </article>
+    </main>
+    <script>
+    let ws = null;
+
+    async function checkAuth() {
+        const res = await fetch('/api/tasks');
+        if (res.status === 401) {
+            window.location.href = '/login.html';
+            return false;
+        }
+        return true;
+    }
+
+    async function logout() {
+        await fetch('/api/logout', { method: 'POST' });
+        window.location.href = '/login.html';
+    }
+
+    function isRunning(t) {
+        return ['downloading','processing','generating_markdown'].includes(t.status);
+    }
+
+    function connectWS() {
+        const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        ws = new WebSocket(`${proto}//${location.host}/ws`);
+        ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+            updateProgress(msg);
+            loadQueue();
+        };
+        ws.onerror = () => { setTimeout(connectWS, 3000); };
+        ws.onclose = () => { setTimeout(connectWS, 3000); };
+    }
+
+    function updateProgress(msg) {
+        const area = document.getElementById('progress-area');
+        area.style.display = 'block';
+
+        document.getElementById('page-progress').textContent = `${msg.currentPage || 0}/${msg.totalPage || 0}`;
+        document.getElementById('page-bar').style.width = msg.totalPage > 0 ? `${(msg.currentPage/msg.totalPage)*100}%` : '0%';
+
+        document.getElementById('floor-progress').textContent = `${msg.currentFloor || 0}/${msg.totalFloor || 0}`;
+        document.getElementById('floor-bar').style.width = msg.totalFloor > 0 ? `${(msg.currentFloor/msg.totalFloor)*100}%` : '0%';
+
+        const stages = ['download', 'process', 'markdown'];
+        const stageMap = { 'downloading': 0, 'processing_content': 1, 'generating_markdown': 2 };
+        const activeIdx = stageMap[msg.stage] || 0;
+
+        stages.forEach((s, i) => {
+            const el = document.getElementById(`stage-${s}`);
+            el.className = 'stage';
+            if (msg.type === 'task_complete') {
+                el.classList.add('done');
+            } else if (i === activeIdx) {
+                el.classList.add('active');
+            } else if (i < activeIdx) {
+                el.classList.add('done');
+            }
+        });
+
+        if (msg.type === 'task_complete') {
+            document.getElementById('status-text').textContent = msg.message || '下载完成';
+            document.getElementById('progress-title').textContent = `tid ${msg.tid} - 完成`;
+        } else if (msg.type === 'task_failed') {
+            document.getElementById('status-text').textContent = msg.error || '下载失败';
+            document.getElementById('progress-title').textContent = `tid ${msg.tid} - 失败`;
+        } else {
+            document.getElementById('status-text').textContent = `阶段: ${msg.stage || '-'} | 状态: ${msg.status || '-'}`;
+            document.getElementById('progress-title').textContent = `当前任务 - tid: ${msg.tid}`;
+        }
+    }
+
+    async function loadQueue() {
+        const res = await fetch('/api/tasks');
+        const tasks = await res.json();
+        const tbody = document.getElementById('queue-body');
+        tbody.innerHTML = '';
+
+        if (tasks.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5">队列空闲</td></tr>';
+            document.getElementById('progress-area').style.display = 'none';
+            return;
+        }
+
+        tasks.forEach(t => {
+            const running = isRunning(t);
+            const queued = t.status === 'queued';
+
+            let statusLabel = t.status;
+            if (running) statusLabel = `${t.status} (${t.stage})`;
+
+            const cancelBtn = queued
+                ? `<button class="secondary outline" onclick="cancelTask(${t.tid})">移除</button>`
+                : '';
+
+            const typeLabel = t.type === 'download' ? '下载' : '更新';
+            const timeStr = t.queueTime ? new Date(t.queueTime).toLocaleString() : '-';
+            const progressInfo = running ? `页${t.currentPage}/${t.totalPage} 楼${t.currentFloor}/${t.totalFloor}` : '';
+
+            const rowStyle = running ? 'style="background:var(--pico-primary-background)"' : '';
+
+            tbody.innerHTML += `<tr ${rowStyle}>
+                <td>${t.tid}</td>
+                <td>${typeLabel}</td>
+                <td>${statusLabel}<br><small>${progressInfo}</small></td>
+                <td>${timeStr}</td>
+                <td>${cancelBtn}</td>
+            </tr>`;
+        });
+
+        var hasRunning = tasks.some(function(t) { return isRunning(t); });
+        if (!hasRunning) {
+            document.getElementById('progress-area').style.display = 'none';
+        }
+    }
+
+    async function cancelTask(tid) {
+        const res = await fetch(`/api/tasks/${tid}`, { method: 'DELETE' });
+        if (res.ok) {
+            loadQueue();
+        } else {
+            const err = await res.json();
+            alert(err.error || '移除失败');
+        }
+    }
+
+    document.getElementById('download-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const tidInput = document.getElementById('tid-input').value.trim();
+        const authorId = parseInt(document.getElementById('authorid-input').value) || 0;
+
+        let tid = 0;
+        const urlMatch = tidInput.match(/tid=(\d+)/);
+        if (urlMatch) {
+            tid = parseInt(urlMatch[1]);
+        } else {
+            tid = parseInt(tidInput);
+        }
+
+        if (!tid) { alert('请输入有效的 tid 或 URL'); return; }
+
+        const res = await fetch('/api/download', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tid, authorId })
+        });
+
+        if (res.ok) {
+            document.getElementById('tid-input').value = '';
+            loadQueue();
+        } else {
+            const err = await res.json();
+            alert(err.error || '加入队列失败');
+        }
+
+        if (!ws) connectWS();
+    });
+
+    checkAuth().then(function(ok) { if (ok) { loadQueue(); connectWS(); } });
+    </script>
+    <script>fetch('/api/version').then(function(r){return r.json()}).then(function(d){var e=document.getElementById('app-version');if(e)e.textContent='v'+d.version}).catch(function(){})</script>
+</body>
+</html>
